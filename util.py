@@ -74,4 +74,5 @@ def padRightDownCorner(img, stride, padValue):
     pad_right = np.tile(img_padded[:,-2:-1,:]*0 + padValue, (1, pad[3], 1))
     img_padded = np.concatenate((img_padded, pad_right), axis=1)
 
-    return img_padded, pad
+    return img_padded, pad   
+    

@@ -4,6 +4,7 @@ import pandas
 import re
 import math
 sys.path.append("..")
+from data_generator import _parse_tr_data, _parse_va_data
 from model import get_training_model
 from ds_iterator import DataIterator
 from ds_generator_client import DataGeneratorClient
@@ -12,6 +13,7 @@ from keras.callbacks import LearningRateScheduler, ModelCheckpoint, CSVLogger, T
 from keras.layers.convolutional import Conv2D
 from keras.applications.vgg19 import VGG19
 import keras.backend as K
+import tensorflow as tf
 
 batch_size = 10
 base_lr = 4e-5 # 2e-5
@@ -79,7 +81,7 @@ if use_client_gen:
     val_client.start()
     val_di = val_client.gen()
     val_samples = 2645
-else:
+elif False:
     train_di = DataIterator("../dataset/train_dataset.h5", data_shape=(3, 368, 368),
                       mask_shape=(1, 46, 46),
                       label_shape=(57, 46, 46),
@@ -90,6 +92,40 @@ else:
                       label_shape=(57, 46, 46),
                       vec_num=38, heat_num=19, batch_size=batch_size, shuffle=True)
     val_samples=val_di.N
+else:
+    def create_data_generator(train=None):
+        # TF dataset API
+        # Retrieve paths to data
+        dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
+        tr_anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
+        tr_img_dir = os.path.join(dataset_dir, "train2017")
+        val_anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
+        val_img_dir = os.path.join(dataset_dir, "val2017")
+        # Retrieve file names and create tf constants
+        tr_file_names = tf.constant(os.listdir(tr_img_dir))
+        val_file_names = tf.constant(os.listdir(val_img_dir))        
+            
+        # Create dataset
+        if train:
+            dataset = tf.data.Dataset.from_tensor_slices(tr_file_names)
+        else:
+            dataset = tf.data.Dataset.from_tensor_slices(val_file_names)
+        
+        # Map dataset *** break big function into multiple map functions
+        if train:
+            dataset = train_dataset.map(lambda filename: tuple(tf.py_func(_parse_tr_data,[filename],filename.dtype))) # Output type incorrect
+        else:
+            dataset = val_dataset.map(lambda filename:tuple(tf.py_func(_parse_va_data,[filename],filename.dtype)))
+        
+        # Create iterators
+        iterator = dataset.make_one_shot_iterator()
+        next_batch = iterator.get_next()
+        # Yield data batch
+        while True:
+            yield K.get_session().run(next_batch)
+
+    train_di = create_data_generator(train=True)
+    val_di = creat_data_generator(train=False)            
 
 # setup lr multipliers for conv layers
 lr_mult=dict()
