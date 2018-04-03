@@ -5,6 +5,7 @@ import random
 from point_operations import Point,addPoints,addScalar,mulScalar
 from pycocotools.coco import COCO
 
+
 class AugmentSelection(object):
     flip = None
     degree = None
@@ -21,8 +22,10 @@ class Joints(object):
     joints = [] # Point2f -> Point
     is_visible = [] # vector<float>
 
-    def __init__():
+    def __init__(joint, is_visible):
         # TODO(): add initializaiton
+        self.joint = joint
+        self.is_visible = is_visible
 
 class MetaData(object):
     dataset = None # string
@@ -42,8 +45,24 @@ class MetaData(object):
     scale_other = None # vector<float>
     joint_others = None # vector<Joints>
 
-    def __init__():
+    def __init__(dataset, img_size, is_validation, num_other_people, people_index, annolist_index,write_number,total_write_number,epoch, objpos, scale_self, joint_self,objpos_other,scale_other, joint_others):
         # TODO(): add initializaiton
+        self.dataset = dataset
+        self.img_size = img_size
+        self.is_validation = is_validation
+        self.num_other_people = num_other_people
+        self.people_index = people_index
+        self.annolist_index = annolist_index
+        self.write_number = write_number
+        self.total_write_number = total_write_number
+        self.epoch = epoch
+        self.objpos = objpos
+        self.scale_self = scale_self
+        self.joint_self = joint_self
+
+        self.objpos_other = objpos_other
+        self.scale_other = scale_other
+        self.joint_others = joint_others
 
 class DataTransformer(object):
     # TransformParameter
@@ -376,3 +395,75 @@ class DataTransformer(object):
                 temp_v = j.is_visible[ri]
                 j.is_visible[ri] = j.is_visible[li]
                 j.is_visible[li] = temp_v
+
+
+
+
+
+
+    def GenerateLabelMap(transformed_label, img_aug, meta):
+        rezX = img_aug.cols
+        rezY = img_aug.rows
+        stride = param_.stride
+        grid_x = rezX / stride
+        grid_y = rezY / stride
+        channelOffset = grid_y * grid_x
+
+        for i in range(grid_y):
+            for j in range(grid_x):
+                for k in range(np+1, 2*(np+1)):
+                    transformed_label[i*channelOffset + i*grid_x + j] = 0
+
+
+        if (np == 56):
+        # creating heatmaps
+
+        #add gausians for all parts
+        for h in range(18):
+            Point2f center = meta.joint_self.joints[h]
+            if(meta.joint_self.is_visible[h] <= 1):
+                PutGaussianMaps(transformed_label + (h+np+39)*channelOffset, center, param_.stride,
+                            grid_x, grid_y, param_.sigma) #self
+          
+        for m in range(meta.num_other_people): #for every other person
+            Point2f center = meta.joint_others[m].joints[h]
+            if(meta.joint_others[m].is_visible[h] <= 1):
+              PutGaussianMaps(transformed_label + (h+np+39)*channelOffset, center, param_.stride,
+                              grid_x, grid_y, param_.sigma)
+
+        # creating PAF
+
+        mid_1[19] = {2, 9,  10, 2,  12, 13, 2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16}
+        mid_2[19] = {9, 10, 11, 12, 13, 14, 3, 4, 5, 17, 6, 7, 8, 18, 1, 15, 16, 17, 18}
+        thre = 1
+
+        #add vector maps for all limbs
+        for i in range(19):
+            Mat count = Mat::zeros(grid_y, grid_x, CV_8UC1)
+            Joints jo = meta.joint_self
+            if (jo.is_visible[mid_1[i]-1] <= 1 && jo.is_visible[mid_2[i]-1] <= 1):
+                PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
+                    count, jo.joints[mid_1[i]-1], jo.joints[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre) #self
+
+        for j in range(meta.num_other_people): #for every other person
+            Joints jo2 = meta.joint_others[j];
+            if (jo2.is_visible[mid_1[i]-1] <= 1 && jo2.is_visible[mid_2[i]-1] <= 1):
+                PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
+                    count, jo2.joints[mid_1[i]-1], jo2.joints[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre)#self
+
+
+        #put background channel
+        for y in range(grid_y):
+            for x in range(grid_x):
+                float maximum = 0;
+                #second background channel
+                for i in range(np+39,np+57):
+                    if(maximum > transformed_label[i*channelOffset + y*grid_x + x]):
+                        maximum = maximum
+                    else:
+                        maximum = transformed_label[i*channelOffset + y*grid_x + x]
+                    
+                
+                transformed_label[(2*np+1)*channelOffset + y*grid_x + x] = max(1.0-maximum, 0.0)
+
+
