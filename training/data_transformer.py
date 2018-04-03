@@ -22,10 +22,8 @@ class Joints(object):
     joints = [] # Point2f -> Point
     is_visible = [] # vector<float>
 
-    def __init__(joint, is_visible):
+    def __init__():
         # TODO(): add initializaiton
-        self.joint = joint
-        self.is_visible = is_visible
 
 class MetaData(object):
     dataset = None # string
@@ -45,24 +43,9 @@ class MetaData(object):
     scale_other = None # vector<float>
     joint_others = None # vector<Joints>
 
-    def __init__(dataset, img_size, is_validation, num_other_people, people_index, annolist_index,write_number,total_write_number,epoch, objpos, scale_self, joint_self,objpos_other,scale_other, joint_others):
+    def __init__():
         # TODO(): add initializaiton
-        self.dataset = dataset
-        self.img_size = img_size
-        self.is_validation = is_validation
-        self.num_other_people = num_other_people
-        self.people_index = people_index
-        self.annolist_index = annolist_index
-        self.write_number = write_number
-        self.total_write_number = total_write_number
-        self.epoch = epoch
-        self.objpos = objpos
-        self.scale_self = scale_self
-        self.joint_self = joint_self
-
-        self.objpos_other = objpos_other
-        self.scale_other = scale_other
-        self.joint_others = joint_others
+        
 
 class DataTransformer(object):
     # TransformParameter
@@ -420,16 +403,16 @@ class DataTransformer(object):
 
         #add gausians for all parts
         for h in range(18):
-            Point2f center = meta.joint_self.joints[h]
+            center = meta.joint_self.joints[h]
             if(meta.joint_self.is_visible[h] <= 1):
-                PutGaussianMaps(transformed_label + (h+np+39)*channelOffset, center, param_.stride,
-                            grid_x, grid_y, param_.sigma) #self
+                PutGaussianMaps(transformed_label + (h+np+39)*channelOffset, center, param.stride,
+                            grid_x, grid_y, param.sigma) #self
           
         for m in range(meta.num_other_people): #for every other person
-            Point2f center = meta.joint_others[m].joints[h]
+            center = meta.joint_others[m].joints[h]
             if(meta.joint_others[m].is_visible[h] <= 1):
-              PutGaussianMaps(transformed_label + (h+np+39)*channelOffset, center, param_.stride,
-                              grid_x, grid_y, param_.sigma)
+              PutGaussianMaps(transformed_label + (h+np+39)*channelOffset, center, param.stride,
+                              grid_x, grid_y, param.sigma)
 
         # creating PAF
 
@@ -439,23 +422,23 @@ class DataTransformer(object):
 
         #add vector maps for all limbs
         for i in range(19):
-            Mat count = Mat::zeros(grid_y, grid_x, CV_8UC1)
-            Joints jo = meta.joint_self
+            count = Mat::zeros(grid_y, grid_x, CV_8UC1)
+            jo = meta.joint_self
             if (jo.is_visible[mid_1[i]-1] <= 1 and jo.is_visible[mid_2[i]-1] <= 1):
                 PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
-                    count, jo.joints[mid_1[i]-1], jo.joints[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre) #self
+                    count, jo.joints[mid_1[i]-1], jo.joints[mid_2[i]-1], param.stride, grid_x, grid_y, param.sigma, thre) #self
 
         for j in range(meta.num_other_people): #for every other person
-            Joints jo2 = meta.joint_others[j];
+            jo2 = meta.joint_others[j];
             if (jo2.is_visible[mid_1[i]-1] <= 1 and jo2.is_visible[mid_2[i]-1] <= 1):
                 PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
-                    count, jo2.joints[mid_1[i]-1], jo2.joints[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre)#self
+                    count, jo2.joints[mid_1[i]-1], jo2.joints[mid_2[i]-1], param.stride, grid_x, grid_y, param.sigma, thre)#self
 
 
         #put background channel
         for y in range(grid_y):
             for x in range(grid_x):
-                float maximum = 0;
+                maximum = 0;
                 #second background channel
                 for i in range(np+39,np+57):
                     if(maximum > transformed_label[i*channelOffset + y*grid_x + x]):
