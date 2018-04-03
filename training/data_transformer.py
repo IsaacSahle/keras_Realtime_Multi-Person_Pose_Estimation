@@ -63,6 +63,95 @@ class DataTransformer(object):
     def initRand():
         needs_rand = (param.mirror || param.crop_size)
     
+    def DecodeString(data, idx):
+        i = 0
+        result = ""
+        while(data[idx+i] != 0):
+            result += str(data[idx+i])
+            i++
+        return result
+
+    def ReadMetaData(meta, data, offset3, offset1):
+        #dataset name
+        meta.dataset = DecodeString(data, offset3)
+
+        #img dimensions
+        height = data[offset3+offset1]
+        width = data[offset3+offset1+4]
+        meta.img_size = ["width":width, "height":height]
+
+        #validation, number of other people, counters
+        meta.is_validation      = not (data[offset3+2*offset1]==0)
+        meta.num_other_people   = int(data[offset3+2*offset1+1])
+        meta.people_index       = int(data[offset3+2*offset1+2])
+        meta.annolist_index     = int(data[offset3+2*offset1+3])
+        meta.write_number       = int(data[offset3+2*offset1+7])
+        meta.total_write_number = int(data[offset3+2*offset1+11])
+
+        #count epochs according to counters
+        cur_epoch = -1
+        if meta.write_number == 0:
+            cur_epoch++
+        meta.epoch = cur_epoch
+        if param_.aug_way == "table" and not is_table_set_: #NEED TO COORDINATE WHAT THE MEMBER VARIABLES IN DataTransformer.h ARE GOING TO BE FOR THIS TO WORK
+            SetAugTable(meta.total_write_number) 
+            is_table_set_ = True
+    
+        #object position
+        meta.objpos.x = data[offset3+3*offset1]
+        meta.objpos.y = data[offset3+3*offset1+4]
+
+        #scale_self, joint_self
+        meta.scale_self = data[offset3+4*offset1]
+        meta.join_self.joints = np.resize(meta.join_self.joints, np_ann) #ASSUMING JOINTS/IS_VISIBLE ARE NP ARRAYS 
+        meta.join_self.is_visible = np.resize(meta.join_self.is_visible, np_ann)
+        for i in range np_ann:
+            meta.joint_self.joints[i].x = data[offset3+5*offset1+4*i]
+            meta.joint_self.joints[i].y = data[offset3+6*offset1+4*i]
+            isVisible = data[offset3+7*offset1+4*i]
+            if isVisible == 2:
+                meta.joint_self.is_visible[i] = 3
+            else:
+                if isVisible == 0:
+                    meta.joint_self.is_visible[i] = 0
+                else:
+                    meta.joint_self.is_visible[i] = 1
+                if meta.joint_self.joints[i].x < 0 
+                 or meta.joint_self.joints[i].y < 0 
+                 or meta.joint_self.joints[i].x >= meta.img_size.width 
+                 or meta.joint_self.joints[i].y >= meta.img_size.height:
+                    meta.joint_self.is_visible[i] = 2 # 2 means cropped, 0 means occluded by still on image
+  
+        # others 7 lines loaded
+        meta.objpos_other = np.resize(meta.objpos_other, meta.num_other_people)
+        meta.scale_other = np.resize(meta.scale_other, meta.num_other_people)
+        meta.joint_others = np.resize(meta.joint_others, meta.num_other_people)
+        for p in range meta.num_other_people:
+            meta.objpos_other[p].x = data[offset3+(8+p)*offset1]
+            meta.objpos_other[p].y = data[offset3+(8+p)*offset1+4]
+            meta.scale_other[p] = data[offset3+(8+meta.num_other_people)*offset1+4*p]
+
+        # 8 + numOtherPeople lines loaded
+        for p in range meta.num_other_people:
+            meta.join_others[p].joints = np.resize(meta.join_others[p].joints, np_ann)
+            meta.joint_others[p].is_visible = np.resize(meta.joint_others[p].is_visible, np_ann)  
+            for i in range np_ann:
+                meta.joint_others[p].joints[i].x = data[offset3+(9+meta.num_other_people+3*p)*offset1+4*i]
+                meta.joint_others[p].joints[i].y = data[offset3+(9+meta.num_other_people+3*p+1)*offset1+4*i]
+                isVisible = data[offset3+(9+meta.num_other_people+3*p+2)*offset1+4*i]
+                if isVisible == 2:
+                    meta.joint_others[p].is_visible[i] = 3
+                else:
+                    if isVisible == 0:
+                        meta.joint_others[p].is_visible[i] = 0
+                    else:
+                        meta.joint_others[p].is_visible[i] = 1
+                    if meta.joint_others[p].joints[i].x < 0
+                     or meta.joint_others[p].joints[i].y < 0
+                     or meta.joint_others[p].joints[i].x >= meta.img_size["width"] #img_size MUST BE A DICTIONARY FOR THIS TO WORK
+                     or meta.joint_others[p].joints[i].y >= meta.img_size["height"]:
+                        meta.joint_others[p].is_visible[i] = 2; # 2 means cropped, 1 means occluded by still on image
+
     def transform(filename=None,anno_path=None):
         AugmentSelection aug = AugmentSelection(False,0.0,(),0)
         coco = COCO(anno_path)
