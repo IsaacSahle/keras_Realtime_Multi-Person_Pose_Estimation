@@ -5,6 +5,7 @@ import random
 from point_operations import Point,addPoints,addScalar,mulScalar
 from pycocotools.coco import COCO
 
+
 class AugmentSelection(object):
     flip = None
     degree = None
@@ -44,6 +45,7 @@ class MetaData(object):
 
     def __init__():
         # TODO(): add initializaiton
+        
 
 class DataTransformer(object):
     # TransformParameter
@@ -376,3 +378,75 @@ class DataTransformer(object):
                 temp_v = j.is_visible[ri]
                 j.is_visible[ri] = j.is_visible[li]
                 j.is_visible[li] = temp_v
+
+
+
+
+
+
+    def GenerateLabelMap(transformed_label, img_aug, meta):
+        rezX = img_aug.cols
+        rezY = img_aug.rows
+        stride = param_.stride
+        grid_x = rezX / stride
+        grid_y = rezY / stride
+        channelOffset = grid_y * grid_x
+
+        for i in range(grid_y):
+            for j in range(grid_x):
+                for k in range(np+1, 2*(np+1)):
+                    transformed_label[i*channelOffset + i*grid_x + j] = 0
+
+
+        if (np == 56):
+        # creating heatmaps
+
+        #add gausians for all parts
+        for h in range(18):
+            center = meta.joint_self.joints[h]
+            if(meta.joint_self.is_visible[h] <= 1):
+                PutGaussianMaps(transformed_label + (h+np+39)*channelOffset, center, param.stride,
+                            grid_x, grid_y, param.sigma) #self
+          
+        for m in range(meta.num_other_people): #for every other person
+            center = meta.joint_others[m].joints[h]
+            if(meta.joint_others[m].is_visible[h] <= 1):
+              PutGaussianMaps(transformed_label + (h+np+39)*channelOffset, center, param.stride,
+                              grid_x, grid_y, param.sigma)
+
+        # creating PAF
+
+        mid_1[19] = {2, 9,  10, 2,  12, 13, 2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16}
+        mid_2[19] = {9, 10, 11, 12, 13, 14, 3, 4, 5, 17, 6, 7, 8, 18, 1, 15, 16, 17, 18}
+        thre = 1
+
+        #add vector maps for all limbs
+        for i in range(19):
+            count = Mat::zeros(grid_y, grid_x, CV_8UC1)
+            jo = meta.joint_self
+            if (jo.is_visible[mid_1[i]-1] <= 1 and jo.is_visible[mid_2[i]-1] <= 1):
+                PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
+                    count, jo.joints[mid_1[i]-1], jo.joints[mid_2[i]-1], param.stride, grid_x, grid_y, param.sigma, thre) #self
+
+        for j in range(meta.num_other_people): #for every other person
+            jo2 = meta.joint_others[j];
+            if (jo2.is_visible[mid_1[i]-1] <= 1 and jo2.is_visible[mid_2[i]-1] <= 1):
+                PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
+                    count, jo2.joints[mid_1[i]-1], jo2.joints[mid_2[i]-1], param.stride, grid_x, grid_y, param.sigma, thre)#self
+
+
+        #put background channel
+        for y in range(grid_y):
+            for x in range(grid_x):
+                maximum = 0;
+                #second background channel
+                for i in range(np+39,np+57):
+                    if(maximum > transformed_label[i*channelOffset + y*grid_x + x]):
+                        maximum = maximum
+                    else:
+                        maximum = transformed_label[i*channelOffset + y*grid_x + x]
+                    
+                
+                transformed_label[(2*np+1)*channelOffset + y*grid_x + x] = max(1.0-maximum, 0.0)
+
+
