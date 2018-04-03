@@ -57,18 +57,14 @@ class DataTransformer(object):
     def __init__(self,transforParam):
         param = transforParam
         self.np_ann = param.num_parts_in_annot
-        self.np = param.num_parts
-    
-    # Might not need random seed
-    def initRand():
-        needs_rand = (param.mirror || param.crop_size)
+        self.np = param.num_parts   
     
     def DecodeString(data, idx):
         i = 0
         result = ""
         while(data[idx+i] != 0):
             result += str(data[idx+i])
-            i++
+            i += 1
         return result
 
     def ReadMetaData(meta, data, offset3, offset1):
@@ -91,7 +87,7 @@ class DataTransformer(object):
         #count epochs according to counters
         cur_epoch = -1
         if meta.write_number == 0:
-            cur_epoch++
+            cur_epoch += 1
         meta.epoch = cur_epoch
         if param_.aug_way == "table" and not is_table_set_: #NEED TO COORDINATE WHAT THE MEMBER VARIABLES IN DataTransformer.h ARE GOING TO BE FOR THIS TO WORK
             SetAugTable(meta.total_write_number) 
