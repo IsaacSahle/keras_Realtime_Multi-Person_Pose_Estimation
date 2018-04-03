@@ -63,18 +63,19 @@ def preprocessing(train=None):
     
     # Dataset 
     dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
-    if trian:
+    if train:
         anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
     else:
         anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
 
     # Transformation
     data_img,mask_img,label = dataTransformer.transform(filename,anno_path)
-    
+
     return data_img, mask_img,label
 
 def _parse_tr_data(filename=None):
     # preprocess(True) 
+    
     # *** After data is parsed from server
     data_img, mask_img, label = tuple(self._recv_arrays())
     
