@@ -2,7 +2,7 @@ import tensorflow as tf
 import cv2
 import copy
 import random
-from pointOperations import Point,addPoints,addScalar,mulScalar
+from point_operations import Point,addPoints,addScalar,mulScalar
 from pycocotools.coco import COCO
 
 class AugmentSelection(object):
