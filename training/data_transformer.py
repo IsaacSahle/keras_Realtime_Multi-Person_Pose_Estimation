@@ -441,13 +441,13 @@ class DataTransformer(object):
         for i in range(19):
             Mat count = Mat::zeros(grid_y, grid_x, CV_8UC1)
             Joints jo = meta.joint_self
-            if (jo.is_visible[mid_1[i]-1] <= 1 && jo.is_visible[mid_2[i]-1] <= 1):
+            if (jo.is_visible[mid_1[i]-1] <= 1 and jo.is_visible[mid_2[i]-1] <= 1):
                 PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
                     count, jo.joints[mid_1[i]-1], jo.joints[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre) #self
 
         for j in range(meta.num_other_people): #for every other person
             Joints jo2 = meta.joint_others[j];
-            if (jo2.is_visible[mid_1[i]-1] <= 1 && jo2.is_visible[mid_2[i]-1] <= 1):
+            if (jo2.is_visible[mid_1[i]-1] <= 1 and jo2.is_visible[mid_2[i]-1] <= 1):
                 PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
                     count, jo2.joints[mid_1[i]-1], jo2.joints[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre)#self
 
