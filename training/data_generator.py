@@ -77,10 +77,13 @@ def _parse_tr_data(filename=None):
     # preprocess(True) 
     
     # *** After data is parsed from server
+    # *** data_img -> (3,368,368) ***
+    # *** mask_img -> (46,46) ***
+    # *** label -> (57,46,46) ***
     data_img, mask_img, label = tuple(self._recv_arrays())
     
     # image
-    dta_img = np.transpose(data_img, (1, 2, 0))
+    data_img = np.transpose(data_img, (1, 2, 0))
     batches_x[sample_idx]=dta_img[np.newaxis, ...]
 
     # mask - the same for vec_weights, heat_weights
@@ -117,7 +120,7 @@ def _parse_tr_data(filename=None):
                 batch_y1, batch_y2,
                 batch_y1, batch_y2,
                 batch_y1, batch_y2]
-    
+   
 
 def _parse_va_data(filename=None):
     

@@ -2,7 +2,8 @@ import tensorflow as tf
 import cv2
 import copy
 import random
-from point_operations import Point,addPoints,addScalar,mulScalar
+from math import exp,sqrt
+from point_operations import Point,addPoints,addScalar,mulScalar,subtractPoint
 from pycocotools.coco import COCO
 
 class AugmentSelection(object):
@@ -158,7 +159,7 @@ class DataTransformer(object):
         image_decoded = cv2.cvtColor(image_decoded,cv2.COLOR_BGR2RGB)
         
         # create miss mask
-        miss_mask = create_miss_mask()
+        mask_miss = create_mask_miss()
 
         # Perform CLAHE
         if(param.do_clahe):
@@ -172,30 +173,42 @@ class DataTransformer(object):
             # Not sure why this is done in C++ server
             # cv::cvtColor(img, img, CV_BGR2GRAY);
             # cv::cvtColor(img, img, CV_GRAY2BGR);
-        # TODO(someone): implement 
-        meta = ReadMetaData() # TODO(Mike/Charles): implement function
+        meta = ReadMetaData() #TODO(Mike/Charles): implement function
         if(param.transform_body_joint):
             TransformMetaJoints(meta)
         
         # Start transformation
         img_aug = np.zeros(param.crop_size_y,param.crop_size_x,3)
         mask_miss_aug = None
-        img_temp, img_temp2, img_temp3 = None # size determined by scale
 
-        aug.scale = AugmentationScale(img, img_temp, mask_miss, meta)
-        aug.degree = AugmentationRotate(img_temp, img_temp2, mask_miss, meta)
-        aug.crop = AugmentationCropped(img_temp2, img_temp3, mask_miss, mask_miss_aug, meta)
-        aug.flip = AugmentationFlip(img_temp3, img_aug, mask_miss_aug, meta)
+        aug.scale,img_temp,mask_miss = AugmentationScale(img,mask_miss,meta)
+        aug.degree,img_temp2,mask_miss = AugmentationRotate(img_temp,mask_miss,meta)
+        aug.crop,img_temp3,mask_miss_aug = AugmentationCropped(img_temp2,mask_miss,meta)
+        aug.flip,img_aug,mask_miss_aug = AugmentationFlip(img_temp3,mask_miss_aug,meta)
 
         mask_miss_aug = cv2.resize(mask_miss_aug,(0,0),fx=1.0/param.stride,fy=1.0/param.stride,interpolation=cv2.INTER_CUBIC)
 
-        # TODO(isaac) copy transformed img (img_aug) into transformed_data
-        # TODO(someone) implement GenerateLabelMap 
+        offset = img_aug.shape[0] * img_aug.shape[1]
+        rezX = img_aug.shape[1]
+        rezY = img_aug.shape[0]
+        grid_x = rezX / param.stride
+        grid_y = rezY / param.stride
+        channel_offset = grid_y * grid_x
 
+        # label size is image size/ stride
+        transformed_label = [0.0]*((params.crop_size_x / param.stride) * (params.crop_size_y / param.stride) * np)
+        for g_y in range(grid_y):
+            for g_x in range(grid_x):
+                for i in range(np+1):
+                    mask = float(mask_miss_aug.at<uchar>(g_y, g_x)) / 255
+                    transformed_label[i*channel_offset + g_y*grid_x + g_x] = mask
         
+        GenerateLabelMap(transformed_label,img_aug,meta)
 
-    def create_miss_mask():
-        # TODO(someone): implement function
+    # return data_img, mask_img, label
+
+    def create_mask_miss():
+        # TODO(someone): implement function after Mike finishes "data" creation
     
     def TransformMetaJoints(meta=None):
         TransformJoints(meta.joint_self)
@@ -224,7 +237,7 @@ class DataTransformer(object):
                     jo.is_visible[i] = 1 if(j.is_visible[from_body_part[i]-1] != 0 and j.is_visible[to_body_part[i]-1] != 0) else 0
         j = copy.deepcopy(jo)
 
-    def AugmentationScale(img_src,img_temp,mask_miss,meta):
+    def AugmentationScale(img_src,mask_miss,meta):
         dice = random.random()
         if(dice > param.scale_prob):
             img_temp = np.copy(img_src) # *** will probably break check when testing ***
@@ -248,9 +261,9 @@ class DataTransformer(object):
             for i in range(np):
                 if(meta.joint_others[p].joints[i] i not None):
                     meta.joint_others[p].joints[i] = mulScalar(meta.joint_others[p].joints[i],scale)
-        return scale_multiplier
+        return scale_multiplier,img_temp,mask_miss
 
-    def AugmentationRotate(img_src, img_dst, mask_miss, meta):
+    def AugmentationRotate(img_src,mask_miss, meta):
         if(param.aug_way == "rand"):
             dice = random.random()
             degree = (dice - 0.5) * 2 * param.max_rotate_degree
@@ -273,9 +286,9 @@ class DataTransformer(object):
             for i in range(np):
                 if(meta.joint_others[p].joints[i] is not None):
                     RotatePoint(meta.joint_others[p].joints[i],R)
-        return degree
+        return degree,img_dst,mask_miss
     
-    def AugmentationCropped(img_src, img_dst, mask_miss, mask_miss_aug, meta):
+    def AugmentationCropped(img_src,mask_miss,meta):
         dice_x = random.random()
         dice_y = random.random()
         
@@ -288,7 +301,7 @@ class DataTransformer(object):
         offset_up = -(center.y - (param.crop_size_y/2))
 
         img_dst = np.zeros((param.crop_size_y, param.crop_size_x, 3)) + (128,128,128)
-        mask_miss_aug = np.zeros((param.crop_size_y, param.crop_size_x,1)) + (255)
+        mask_miss_aug = np.zeros((param.crop_size_y, param.crop_size_x)) + (255)
         
         for i in range(param.crop_size_y):
             for j in range(param.crop_size_x):
@@ -309,9 +322,9 @@ class DataTransformer(object):
                 if(meta.joint_others[p].joints[i] is not None):
                     meta.joint_others[p].joints[i] = addPoints(meta.joint_others[p].joints[i],offset)
         
-        return Point(x_offset,y_offset)
+        return Point(x_offset,y_offset),img_dst,mask_miss_aug
 
-    def AugmentationFlip(img_src,img_aug,mask_miss,meta):
+    def AugmentationFlip(img_src,mask_miss_aug,meta):
         if(param.aug_way == "rand"):
             dice = random.random()
             doflip = (dice <= param.flip_prob)
@@ -323,7 +336,7 @@ class DataTransformer(object):
         if(doflip):
            img_aug = cv2.flip(img_src,1)
            w = img_src.shape[1]
-           mask_miss = cv2.flip(mask_miss,1)
+           mask_miss_aug = cv2.flip(mask_miss_aug,1)
            meta.objpos.x = w - 1 - meta.objpos.x
            
            for i in range(np):
@@ -345,7 +358,7 @@ class DataTransformer(object):
         else:
             img_aug = np.copy(img_src)
         
-        return doflip
+        return doflip,img_aug,mask_miss_aug
     
     def RotatePoint(p=None,R=None):
         # Come back and check that shapes are correct
@@ -376,3 +389,112 @@ class DataTransformer(object):
                 temp_v = j.is_visible[ri]
                 j.is_visible[ri] = j.is_visible[li]
                 j.is_visible[li] = temp_v
+    
+    def GenerateLabelMap(transformed_label,img_aug,meta):
+
+        rezX = img_aug.shape[1]
+        rezY = img_aug.shape[0]
+        stride = param.stride
+        grid_x = rezX / stride
+        grid_y = rezY / stride
+        channelOffset = grid_y * grid_x
+
+        for g_y in range(grid_y):
+            for g_x in range(grid_x):
+                for i in range(np+1,2*(np+1)):
+                    transformed_label[i*channelOffset + g_y*grid_x + g_x] = 0.0
+
+        # Creating heatmap
+        if(np == 56):
+            for i in range(18):
+                center = meta.joint_self.joints[i]
+                if(meta.joint_self.is_visible[i] <= 1):
+                    PutGaussianMaps(transformed_label + (i+np+39)*channelOffset, center, param_.stride,
+                grid_x, grid_y, param_.sigma)
+                
+                for j in range(meta.num_other_people):
+                    center = meta.joint_others[j].joints[i]
+                    if(meta.joint_others[j].is_visible[i] <= 1):
+                            PutGaussianMaps(transformed_label + (i+np+39)*channelOffset, center, param_.stride,
+                    grid_x, grid_y, param_.sigma)
+
+        # Creating PAF
+        mid_1 = [2, 9,  10, 2,  12, 13, 2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16]
+        mid_2 = [9, 10, 11, 12, 13, 14, 3, 4, 5, 17, 6, 7, 8, 18, 1, 15, 16, 17, 18]
+        thre = 1
+        
+        # Add vector maps for all limbs 
+        for i in range(19):
+            count = np.zeros((grid_y,grid_x))
+            jo = meta.joint_self
+            if(jo.is_visible[mid_1[i]-1] <= 1 and jo.is_visible[mid_2[i]-1] <= 1):
+                PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
+            count, jo.joints[mid_1[i]-1], jo.joints[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre)
+
+            for j in range(meta.num_other_people)
+                jo2 = meta.joint_others[j]
+                if(jo2.is_visible[mid_1[i]-1] <= 1 and jo2.is_visible[mid_2[i]-1] <= 1):
+                    PutVecMaps(transformed_label + (np+ 1+ 2*i)*channelOffset, transformed_label + (np+ 2+ 2*i)*channelOffset,
+                count, jo2.joints[mid_1[i]-1], jo2.joints[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre)   
+
+        # Put background channel **** no idea what this is doing **** 
+        for g_y in range(grid_y):
+            for g_x in range(grid_x):
+                maximum = 0
+                # second background channel
+                for i in range(np+39,np+57):
+                    maximum = maximum if maximum > transformed_label[i*channelOffset + g_y*grid_x + g_x] else transformed_label[i*channelOffset + g_y*grid_x + g_x]
+                transformed_label[(2*np+1)*channelOffset + g_y*grid_x + g_x] = max(1.0-maximum, 0.0)
+        
+
+    def PutGaussianMaps(entry,center,stride,grid_x,grid_y,sigma):
+        start = stride/2.0 - 0.5 # 0 if stride = 1, 0.5 if stride = 2, 1.5 if stride = 4, ...
+        for i in range(grid_y):
+            for j in range(grid_x):
+                x = start + g_x * stride
+                y = start + g_y * stride
+                d2 = (x-center.x)*(x-center.x) + (y-center.y)*(y-center.y)
+                exponent = d2 / 2.0 / sigma / sigma
+                
+                if(exponent > 4.6052): # ln(100) = -ln(1%)
+                    continue
+                
+                entry[g_y*grid_x + g_x] += exp(-exponent)
+                
+                if (entry[g_y*grid_x + g_x] > 1):
+                    entry[g_y*grid_x + g_x] = 1
+
+    def PutVecMaps(entryX,entryY,count,centerA,centerB,stride,grid_x,grid_y,sigma,thre):         
+        centerB = mulScalar(centerB,0.125)
+        centerA = mulScalar(centerA,0.125)
+
+        bc = subtractPoint(centerB,centerA)
+        min_x = max(int(round(min(centerA.x,centerB.x) - thre)),0)
+        max_x = min(int(round(max(centerA.x, centerB.x)+thre)),grid_x)
+  
+        min_y = max(int(round(min(centerA.y, centerB.y)-thre)),0)
+        max_y = min(int(round(max(centerA.y, centerB.y)+thre)), grid_y)
+
+        norm_bc = sqrt((bc.x * bc.x) + (bc.y * bc.y))
+        
+        # skip if body parts overlap
+        if(norm_bc < 1e-8):
+            return
+
+        bc.x = bc.x/norm_bc
+        bc.y = bc.y/norm_bc
+
+        for g_x in range(min_y,max_y):
+            for g_y in range(min_x,max_x):
+                ba = Point(g_x - centerA.x,g_y - centerA.y)
+                dist = abs((ba.x * bc.y) - (ba.y * bc.x))
+                if(dist <= thre):
+                   cnt = count[g_y][g_x] 
+                   if(cnt == 0):
+                       entryX[g_y*grid_x + g_x] = bc.x
+                       entryY[g_y*grid_x + g_x] = bc.y
+                   else:
+                       # averaging when limbs of multiple persons overlap
+                       entryX[g_y*grid_x + g_x] = (entryX[g_y*grid_x + g_x]*cnt + bc.x) / (cnt + 1)
+                       entryY[g_y*grid_x + g_x] = (entryY[g_y*grid_x + g_x]*cnt + bc.y) / (cnt + 1)
+                       count[g_y][g_x] = cnt + 1
