@@ -78,6 +78,8 @@ class DataTransformer(object):
             # Not sure why this is done in C++ server
             # cv::cvtColor(img, img, CV_BGR2GRAY);
             # cv::cvtColor(img, img, CV_GRAY2BGR);
+        
+        meta = format_meta_data(data)
 
         if(param.transform_body_joint):
             TransformMetaJoints(meta)
@@ -109,8 +111,14 @@ class DataTransformer(object):
                     transformed_label[i*channel_offset + g_y*grid_x + g_x] = mask
         
         GenerateLabelMap(transformed_label,img_aug,meta)
-        data_img,mask_img,label = format_data(img_aug,transformed_label,meta)
-        return data_img, mask_img, label 
+        
+        t_label = np.copy(transformed_label)
+        weights = np.reshape(t_label, shape = [grid_x, grid_y * num_parts])
+        vec = np.reshape(np.copy(transformed_label + start_label_data), shape = [grid_x, grid_y * num_parts])
+        label = np.multiply(vec, weights)
+        mask = np.reshape(t_label, shape = [grid_x, grid_y])
+        
+        return data_img, mask, label 
     
     def TransformMetaJoints(meta=None):
         TransformJoints(meta["joint_self"]) # joint_self,joint_others => (17,3)
@@ -400,10 +408,6 @@ class DataTransformer(object):
                        entryX[g_y*grid_x + g_x] = (entryX[g_y*grid_x + g_x]*cnt + bc.x) / (cnt + 1)
                        entryY[g_y*grid_x + g_x] = (entryY[g_y*grid_x + g_x]*cnt + bc.y) / (cnt + 1)
                        count[g_y][g_x] = cnt + 1
-    
-    def create_data_batch(img_aug,transformed_label,meta):
-        # Prepare batch
-
 
     def create_data_info(coco,filename,img_dir):
         img_id = filename[:len(filename) - 4]
@@ -560,3 +564,5 @@ class DataTransformer(object):
 
         return mask_all * 255, mask_miss * 255
     
+    def format_meta_data(meta):
+        
