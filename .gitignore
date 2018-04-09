@@ -8,6 +8,7 @@ dataset/trainmask2017
 dataset/valmask2017
 dataset/*.h5
 dataset/annotations
+dataset/.DS_Store
 dataset/coco
 .idea
 __pycache__
@@ -15,3 +16,4 @@ __pycache__
 logs/
 training.csv
 weights.best.h5
+.vscode/

@@ -65,11 +65,13 @@ def preprocessing(train=None):
     dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
     if train:
         anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
+        img_dir = os.path.join(dataset_dir, "train2017")
     else:
         anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
+        img_dir = os.path.join(dataset_dir, "val2017")
 
     # Transformation
-    data_img,mask_img,label = dataTransformer.transform(filename,anno_path)
+    data_img,mask_img,label = dataTransformer.transform(filename,anno_path,img_dir)
 
     return data_img, mask_img,label
 
