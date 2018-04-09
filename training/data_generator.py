@@ -76,13 +76,13 @@ def preprocessing(train=None):
     return data_img, mask_img,label
 
 def _parse_tr_data(filename=None):
-    # preprocess(True) 
-    
-    # *** After data is parsed from server
+    # TODO(someone): test preprocess with coco dataset images 
+
+    # *** After data is parsed from server ... if we get these shapes correct, we're golden!
     # *** data_img -> (3,368,368) ***
     # *** mask_img -> (46,46) ***
     # *** label -> (57,46,46) ***
-    data_img, mask_img, label = tuple(self._recv_arrays())
+    data_img, mask_img, label = preprocess(True)
     
     # image
     data_img = np.transpose(data_img, (1, 2, 0))
