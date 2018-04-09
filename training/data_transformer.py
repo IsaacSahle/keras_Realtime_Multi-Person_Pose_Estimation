@@ -326,16 +326,16 @@ class DataTransformer(object):
             for i in range(18):
                 center = meta["joint_self"][i]
                 if(meta["joint_self"][i][2] <= 1):
-                    PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, param_.stride,
-                grid_x, grid_y, param_.sigma)
+                    PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, stride,
+                grid_x, grid_y, param.sigma)
                 
                 for j in range(meta["num_other_people"]):
                     center = meta["joint_others"][j][i] 
                     if(meta["joint_others"][j][2] <= 1):
                     #center = meta.joint_others[j].joints[i]
                     #if(meta.joint_others[j].is_visible[i] <= 1):
-                        PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, param_.stride,
-                                        grid_x, grid_y, param_.sigma)
+                        PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, stride,
+                                        grid_x, grid_y, param.sigma)
 
         # Creating PAF
         mid_1 = [2, 9,  10, 2,  12, 13, 2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16]
@@ -348,13 +348,13 @@ class DataTransformer(object):
             jo = meta["joint_self"]
             if(jo[mid_1[i]-1][2] <= 1 and jo[mid_2[i]-1][2] <= 1):
                 PutVecMaps(transformed_label + (num_parts+ 1+ 2*i)*channelOffset, transformed_label + (num_parts+ 2+ 2*i)*channelOffset,
-            count, jo[mid_1[i]-1], jo[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre)
+            count, jo[mid_1[i]-1], jo[mid_2[i]-1], stride, grid_x, grid_y, param.sigma, thre)
 
             for j in range(meta["num_other_people"]):
                 jo2 = meta["joint_others"][j]
                 if(jo2[mid_1[i]-1][2] <= 1 and jo2[mid_2[i]-1][2] <= 1):
                     PutVecMaps(transformed_label + (num_parts+ 1+ 2*i)*channelOffset, transformed_label + (num_parts+ 2+ 2*i)*channelOffset,
-                count, jo2[mid_1[i]-1], jo2[mid_2[i]-1], param_.stride, grid_x, grid_y, param_.sigma, thre)   
+                count, jo2[mid_1[i]-1], jo2[mid_2[i]-1], stride, grid_x, grid_y, param.sigma, thre)   
 
         # Put background channel **** no idea what this is doing **** 
         for g_y in range(grid_y):
@@ -383,40 +383,40 @@ class DataTransformer(object):
                     entry[g_y*grid_x + g_x] = 1
 
     def PutVecMaps(entryX,entryY,count,centerA,centerB,stride,grid_x,grid_y,sigma,thre):         
-        centerB = mulScalar(centerB,0.125)
-        centerA = mulScalar(centerA,0.125)
+        centerB = np.multiply(centerB,0.125)
+        centerA = np.mulitply(centerA,0.125)
 
-        bc = subtractPoint(centerB,centerA)
-        min_x = max(int(round(min(centerA.x,centerB.x) - thre)),0)
-        max_x = min(int(round(max(centerA.x, centerB.x)+thre)),grid_x)
+        bc = centerB-centerA
+        min_x = max(int(round(min(centerA[0],centerB[0]) - thre)),0)
+        max_x = min(int(round(max(centerA[0], centerB[0])+thre)),grid_x)
   
-        min_y = max(int(round(min(centerA.y, centerB.y)-thre)),0)
-        max_y = min(int(round(max(centerA.y, centerB.y)+thre)), grid_y)
+        min_y = max(int(round(min(centerA[1], centerB[1])-thre)),0)
+        max_y = min(int(round(max(centerA[1], centerB[1])+thre)), grid_y)
 
-        norm_bc = sqrt((bc.x * bc.x) + (bc.y * bc.y))
+        norm_bc = sqrt((bc[0] * bc[0]) + (bc[1] * bc[1]))
         
         # skip if body parts overlap
         if(norm_bc < 1e-8):
             return
 
-        bc.x = bc.x/norm_bc
-        bc.y = bc.y/norm_bc
+        bc[0] = bc[0]/norm_bc
+        bc[1] = bc[1]/norm_bc
 
         for g_x in range(min_y,max_y):
             for g_y in range(min_x,max_x):
-                ba = Point(g_x - centerA.x,g_y - centerA.y)
-                dist = abs((ba.x * bc.y) - (ba.y * bc.x))
+                ba = [g_x - centerA[0],g_y - centerA[1]]
+                dist = abs((ba[0] * bc[1]) - (ba[1] * bc[0]))
                 if(dist <= thre):
                    cnt = count[g_y][g_x] 
                    if(cnt == 0):
-                       entryX[g_y*grid_x + g_x] = bc.x
-                       entryY[g_y*grid_x + g_x] = bc.y
+                       entryX[g_y*grid_x + g_x] = bc[0]
+                       entryY[g_y*grid_x + g_x] = bc[1]
                    else:
                        # averaging when limbs of multiple persons overlap
-                       entryX[g_y*grid_x + g_x] = (entryX[g_y*grid_x + g_x]*cnt + bc.x) / (cnt + 1)
-                       entryY[g_y*grid_x + g_x] = (entryY[g_y*grid_x + g_x]*cnt + bc.y) / (cnt + 1)
+                       entryX[g_y*grid_x + g_x] = (entryX[g_y*grid_x + g_x]*cnt + bc[0]) / (cnt + 1)
+                       entryY[g_y*grid_x + g_x] = (entryY[g_y*grid_x + g_x]*cnt + bc[1]) / (cnt + 1)
                        count[g_y][g_x] = cnt + 1
-
+    
     def create_data_info(coco,filename,img_dir):
         img_id = filename[:len(filename) - 4]
         ann_ids = coco.getAnnIds(imgIds=img_id)
@@ -592,4 +592,3 @@ class DataTransformer(object):
                     joint[j,2] = 0 if joint[j,2] == 0 else 1
                     if(joint[j,0] < 0 or joint[j,1] < 0 or joint[j,0] >= meta["img_width"] or joint[j,1] >= meta["img_height"]):
                         joint[j,2] = 2
-                        
