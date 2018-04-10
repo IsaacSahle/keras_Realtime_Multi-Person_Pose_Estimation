@@ -39,14 +39,14 @@ class DataTransformer(object):
         img,meta,mask_miss,mask_all = create_data_info(coco,filename,img_dir)
 
         # Perform CLAHE
-        if(param.do_clahe):
+        #if(param.do_clahe):
             # *** Currently false all the time, look into later
             # Code snippet
             # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
             # cl1 = clahe.apply(img)
         
         # Convert to grayscale
-        if(param.gray == 1):
+        #if(param.gray == 1):
             # Not sure why this is done in C++ server
             # cv::cvtColor(img, img, CV_BGR2GRAY);
             # cv::cvtColor(img, img, CV_GRAY2BGR);
@@ -165,7 +165,8 @@ class DataTransformer(object):
         for p in range(meta["num_other_people"]):
             meta["objpos_other"][p][0], meta["objpos_other"][p][1] = RotatePoint(meta["objpos_other"][p][0],meta["objpos_other"][p][1],R)
             for i in range(num_parts):
-            meta["joint_others"][p][i,0], meta["joint_others"][p][i,1] = RotatePoint(meta["joint_others"][p][i,0],meta["joint_others"][p][i,1],R)
+                meta["joint_others"][p][i,0], meta["joint_others"][p][i,1] = RotatePoint(meta["joint_others"][p][i,0],meta["joint_others"][p][i,1],R)
+
         return degree,img_dst,mask_miss
 
     def AugmentationCropped(img_src,mask_miss,meta):
@@ -227,18 +228,19 @@ class DataTransformer(object):
                if(meta.joint_self.joints[i] is not None):
                    (meta.joint_self.joints[i]).x = w - 1 - (meta.joint_self.joints[i]).x
             
-            if(param.transform_body_joint):
-                SwapLeftRight(meta.joint_self)
+           if(param.transform_body_joint):
+               SwapLeftRight(meta.joint_self)
         
-            for p in range(meta.num_other_people):
-                meta.objpos_other[p].x = w - 1 - meta.objpos_other[p].x
+           for p in range(meta.num_other_people):
+               meta.objpos_other[p].x = w - 1 - meta.objpos_other[p].x
                 
-                for i in range(num_parts):
-                    if(meta.joint_others[p].joints[i] is  not None):
-                        meta.joint_others[p].joints[i].x = w - 1 - meta.joint_others[p].joints[i].x
+               for i in range(num_parts):
+                   if(meta.joint_others[p].joints[i] is  not None):
+                       meta.joint_others[p].joints[i].x = w - 1 - meta.joint_others[p].joints[i].x
+
                 
-                if(param.transform_body_joint):
-                    SwapLeftRight(meta.joint_others[p])
+               if(param.transform_body_joint):
+                   SwapLeftRight(meta.joint_others[p])
         else:
             img_aug = np.copy(img_src)
         
@@ -262,22 +264,22 @@ class DataTransformer(object):
            for i in range(num_parts):
                 meta["joint_self"][i,0] = w - 1 - meta["joint_self"][i,0]
             
-            if(param.transform_body_joint):
-                SwapLeftRight(meta["joint_self"])
+           if(param.transform_body_joint):
+               SwapLeftRight(meta["joint_self"])
         
-            for p in range(meta["num_other_people"]):
-                meta["objpos_other"][p][0] = w - 1 - meta["objpos_other"][p][0]
+           for p in range(meta["num_other_people"]):
+               meta["objpos_other"][p][0] = w - 1 - meta["objpos_other"][p][0]
                 
-                for i in range(num_parts):
-                    meta["joint_others"][p][i,0] = w - 1 - meta["joint_others"][p][i,0]
+               for i in range(num_parts):
+                   meta["joint_others"][p][i,0] = w - 1 - meta["joint_others"][p][i,0]
                 
-                if(param.transform_body_joint):
-                    SwapLeftRight(meta["joint_others"][p])
+               if(param.transform_body_joint):
+                   SwapLeftRight(meta["joint_others"][p])
         else:
             img_aug = np.copy(img_src)
         
         return doflip,img_aug,mask_miss_aug
-    
+ 
     def RotatePoint(x=None,y=None,R=None):
         # Come back and check that shapes are correct
         point = np.asarray([p.x,p.y,1.0])
