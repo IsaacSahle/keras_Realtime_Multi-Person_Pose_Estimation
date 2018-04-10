@@ -12,3 +12,5 @@ def addScalar(p,scalar):
     return Point(p.x + scalar,p.y + scalar)
 def mulScalar(p,scalar):
     return Point(p.x * scalar,p.y * scalar)
+def subtractPoint(p1,p2):
+    return Point(p1.x - p2.x,p1.y - p2.y)

@@ -4,7 +4,7 @@ import pandas
 import re
 import math
 sys.path.append("..")
-from data_generator import _parse_tr_data, _parse_va_data
+from data_generator import *#_parse_tr_data, _parse_va_data
 from model import get_training_model
 from ds_iterator import DataIterator
 from ds_generator_client import DataGeneratorClient
@@ -25,7 +25,7 @@ stepsize = 136106 #68053   // after each stepsize iterations update learning rat
 max_iter = 200000 # 600000
 
 # True = start data generator client, False = use augmented dataset file (deprecated)
-use_client_gen = True
+use_client_gen = False
 
 WEIGHTS_BEST = "weights.best.h5"
 TRAINING_LOG = "training.csv"
