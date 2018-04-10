@@ -61,6 +61,7 @@ class TransformationParameter(object):
         transformed_data = [] # size: params.crop_size_x * params.crop_size_y * 3
         transformed_label = [] # size: grid_x * grid_y * np
     
+
         # Dataset 
         dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
         if train:
@@ -75,54 +76,53 @@ class TransformationParameter(object):
 
         return data_img, mask_img,label
 
-    def _parse_tr_data(filename=None):
-        # TODO(someone): test preprocess with coco dataset images 
+def _parse_tr_data(filename=None):
+    # TODO(someone): test preprocess with coco dataset images 
 
-        # *** After data is parsed from server ... if we get these shapes correct, we're golden!
-        # *** data_img -> (3,368,368) ***
-        # *** mask_img -> (46,46) ***
-        # *** label -> (57,46,46) ***
-        data_img, mask_img, label = preprocess(True)
+    # *** After data is parsed from server ... if we get these shapes correct, we're golden!
+    # *** data_img -> (3,368,368) ***
+    # *** mask_img -> (46,46) ***
+    # *** label -> (57,46,46) ***
+    data_img, mask_img, label = preprocess(True)
     
-        # image
-        data_img = np.transpose(data_img, (1, 2, 0))
-        batches_x[sample_idx]=dta_img[np.newaxis, ...]
+    # image
+    data_img = np.transpose(data_img, (1, 2, 0))
+    batches_x[sample_idx]=dta_img[np.newaxis, ...]
 
-        # mask - the same for vec_weights, heat_weights
-        vec_weights = np.repeat(mask_img[:,:,np.newaxis], self.vec_num, axis=2)
-        heat_weights = np.repeat(mask_img[:,:,np.newaxis], self.heat_num, axis=2)
+    # mask - the same for vec_weights, heat_weights
+    vec_weights = np.repeat(mask_img[:,:,np.newaxis], self.vec_num, axis=2)
+    heat_weights = np.repeat(mask_img[:,:,np.newaxis], self.heat_num, axis=2)
 
-        batches_x1[sample_idx]=vec_weights[np.newaxis, ...]
-        batches_x2[sample_idx]=heat_weights[np.newaxis, ...]
+    batches_x1[sample_idx]=vec_weights[np.newaxis, ...]
+    batches_x2[sample_idx]=heat_weights[np.newaxis, ...]
 
-        # label
-        vec_label = label[:self.split_point, :, :]
-        vec_label = np.transpose(vec_label, (1, 2, 0))
-        heat_label = label[self.split_point:, :, :]
-        heat_label = np.transpose(heat_label, (1, 2, 0))
+    # label
+    vec_label = label[:self.split_point, :, :]
+    vec_label = np.transpose(vec_label, (1, 2, 0))
+    heat_label = label[self.split_point:, :, :]
+    heat_label = np.transpose(heat_label, (1, 2, 0))
 
-        batches_y1[sample_idx]=vec_label[np.newaxis, ...]
-        batches_y2[sample_idx]=heat_label[np.newaxis, ...]
+    batches_y1[sample_idx]=vec_label[np.newaxis, ...]
+    batches_y2[sample_idx]=heat_label[np.newaxis, ...]
 
-        sample_idx += 1
+    sample_idx += 1
 
-        if sample_idx == self.batch_size:
-            sample_idx = 0
+    if sample_idx == self.batch_size:
+        sample_idx = 0
 
-            batch_x = np.concatenate(batches_x)
-            batch_x1 = np.concatenate(batches_x1)
-            batch_x2 = np.concatenate(batches_x2)
-            batch_y1 = np.concatenate(batches_y1)
-            batch_y2 = np.concatenate(batches_y2)
+        batch_x = np.concatenate(batches_x)
+        batch_x1 = np.concatenate(batches_x1)
+        batch_x2 = np.concatenate(batches_x2)
+        batch_y1 = np.concatenate(batches_y1)
+        batch_y2 = np.concatenate(batches_y2)
 
-            yield [batch_x, batch_x1,  batch_x2], \
-                    [batch_y1, batch_y2,
-                    batch_y1, batch_y2,
-                    batch_y1, batch_y2,
-                    batch_y1, batch_y2,
-                    batch_y1, batch_y2,
-                    batch_y1, batch_y2]
-   
+        yield [batch_x, batch_x1,  batch_x2], \
+                [batch_y1, batch_y2,
+                batch_y1, batch_y2,
+                batch_y1, batch_y2,
+                batch_y1, batch_y2,
+                batch_y1, batch_y2,
+                batch_y1, batch_y2]
 
 def _parse_va_data(filename=None):
     print("You thought this function did something huh?")

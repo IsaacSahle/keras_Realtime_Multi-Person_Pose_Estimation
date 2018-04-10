@@ -166,6 +166,7 @@ class DataTransformer(object):
             meta["objpos_other"][p][0], meta["objpos_other"][p][1] = RotatePoint(meta["objpos_other"][p][0],meta["objpos_other"][p][1],R)
             for i in range(num_parts):
                 meta["joint_others"][p][i,0], meta["joint_others"][p][i,1] = RotatePoint(meta["joint_others"][p][i,0],meta["joint_others"][p][i,1],R)
+
         return degree,img_dst,mask_miss
 
     def AugmentationCropped(img_src,mask_miss,meta):
@@ -236,6 +237,7 @@ class DataTransformer(object):
                for i in range(num_parts):
                    if(meta.joint_others[p].joints[i] is  not None):
                        meta.joint_others[p].joints[i].x = w - 1 - meta.joint_others[p].joints[i].x
+
                 
                if(param.transform_body_joint):
                    SwapLeftRight(meta.joint_others[p])
@@ -277,7 +279,7 @@ class DataTransformer(object):
             img_aug = np.copy(img_src)
         
         return doflip,img_aug,mask_miss_aug
-    
+ 
     def RotatePoint(x=None,y=None,R=None):
         # Come back and check that shapes are correct
         point = np.asarray([p.x,p.y,1.0])
