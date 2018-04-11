@@ -4,7 +4,7 @@ import pandas
 import re
 import math
 sys.path.append("..")
-from data_generator import *#_parse_tr_data, _parse_va_data
+from data_generator import _parse_tr_data, _parse_va_data
 from model import get_training_model
 from ds_iterator import DataIterator
 from ds_generator_client import DataGeneratorClient
@@ -70,7 +70,6 @@ else:
     last_epoch = 0
 
 # prepare generators
-
 if use_client_gen:
     train_client = DataGeneratorClient(port=5555, host="localhost", hwm=160, batch_size=10)
     train_client.start()
@@ -113,7 +112,7 @@ else:
         
         # Map dataset *** break big function into multiple map functions
         if train:
-            dataset = train_dataset.map(lambda filename: tuple(tf.py_func(_parse_tr_data,[filename],filename.dtype))) # Output type incorrect
+            dataset = dataset.map(lambda filename: tuple(tf.py_func(_parse_tr_data,[filename],filename.dtype))) # Output type incorrect
         else:
             dataset = val_dataset.map(lambda filename:tuple(tf.py_func(_parse_va_data,[filename],filename.dtype)))
         
@@ -125,7 +124,8 @@ else:
             yield K.get_session().run(next_batch)
 
     train_di = create_data_generator(train=True)
-    val_di = creat_data_generator(train=False)            
+    train_samples = 20584
+    val_di = create_data_generator(train=False)            
 
 # setup lr multipliers for conv layers
 lr_mult=dict()

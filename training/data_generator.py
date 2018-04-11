@@ -30,51 +30,50 @@ class TransformationParameter(object):
     #def __init__(self):
         # Nothing yet
 
-    def preprocessing(train=None):
-        params = TransformationParameter()
-        params.stride = 8
-        params.crop_size_x = 368
-        params.crop_size_y = 368
-        params.target_dist = 0.6
-        params.scale_prob = 1
-        params.scale_min = 0.5
-        params.scale_max = 1.1
-        params.max_rotate_degree = 40
-        params.center_perterb_max = 40
-        params.do_clahe = False
-        params.num_parts_in_annot = 17
-        params.num_parts = 56
-        params.mirror = True
+def preprocessing(train=None):
+    params = TransformationParameter()
+    params.stride = 8
+    params.crop_size_x = 368
+    params.crop_size_y = 368
+    params.target_dist = 0.6
+    params.scale_prob = 1
+    params.scale_min = 0.5
+    params.scale_max = 1.1
+    params.max_rotate_degree = 40
+    params.center_perterb_max = 40
+    params.do_clahe = False
+    params.num_parts_in_annot = 17
+    params.num_parts = 56
+    params.mirror = True
 
-        dataTransformer = DataTransformer(params)
-        # dataTransformer.initRand()
-        np = 2*(params.num_parts+1)
-        stride = params.stride
-        grid_x = params.crop_size_x / stride
-        grid_y = params.crop_size_y / stride
-        channelOffset = grid_y * grid_x
-        vec_channels = 38
-        heat_channels = 19
-        ch = vec_channels + heat_channels
-        start_label_data = (params.num_parts+1) * channelOffset
+    dataTransformer = DataTransformer(params)
+    # dataTransformer.initRand()
+    np = 2*(params.num_parts+1)
+    stride = params.stride
+    grid_x = params.crop_size_x / stride
+    grid_y = params.crop_size_y / stride
+    channelOffset = grid_y * grid_x
+    vec_channels = 38
+    heat_channels = 19
+    ch = vec_channels + heat_channels
+    start_label_data = (params.num_parts+1) * channelOffset
 
-        transformed_data = [] # size: params.crop_size_x * params.crop_size_y * 3
-        transformed_label = [] # size: grid_x * grid_y * np
-    
+    transformed_data = [] # size: params.crop_size_x * params.crop_size_y * 3
+    transformed_label = [] # size: grid_x * grid_y * np
 
-        # Dataset 
-        dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
-        if train:
-            anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
-            img_dir = os.path.join(dataset_dir, "train2017")
-        else:
-            anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
-            img_dir = os.path.join(dataset_dir, "val2017")
+    # Dataset 
+    dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
+    if train:
+        anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
+        img_dir = os.path.join(dataset_dir, "train2017")
+    else:
+        anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
+        img_dir = os.path.join(dataset_dir, "val2017")
 
-        # Transformation
-        data_img,mask_img,label = dataTransformer.transform(filename,anno_path,img_dir)
+    # Transformation
+    data_img,mask_img,label = dataTransformer.transform(filename,anno_path,img_dir)
 
-        return data_img, mask_img,label
+    return data_img, mask_img,label
 
 def _parse_tr_data(filename=None):
     # TODO(someone): test preprocess with coco dataset images 
@@ -84,7 +83,7 @@ def _parse_tr_data(filename=None):
     # *** mask_img -> (46,46) ***
     # *** label -> (57,46,46) ***
     data_img, mask_img, label = preprocess(True)
-    
+
     # image
     data_img = np.transpose(data_img, (1, 2, 0))
     batches_x[sample_idx]=dta_img[np.newaxis, ...]
@@ -123,6 +122,7 @@ def _parse_tr_data(filename=None):
                 batch_y1, batch_y2,
                 batch_y1, batch_y2,
                 batch_y1, batch_y2]
+   
 
 def _parse_va_data(filename=None):
     print("You thought this function did something huh?")
