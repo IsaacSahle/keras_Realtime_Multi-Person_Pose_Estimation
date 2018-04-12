@@ -53,7 +53,7 @@ class DataTransformer(object):
             # cv::cvtColor(img, img, CV_BGR2GRAY);
             # cv::cvtColor(img, img, CV_GRAY2BGR);
         
-        meta = self.format_meta_data(data)
+        meta = self.format_meta_data(meta)
 
         if(self.param.transform_body_joint):
             self.TransformMetaJoints(meta)
@@ -77,18 +77,18 @@ class DataTransformer(object):
         channel_offset = grid_y * grid_x
 
         # label size is image size/ stride
-        transformed_label = [0.0]*((params.crop_size_x / param.stride) * (params.crop_size_y / param.stride) * num_parts)
+        transformed_label = [0.0]*((params.crop_size_x / param.stride) * (params.crop_size_y / param.stride) * self.num_parts)
         for g_y in range(grid_y):
             for g_x in range(grid_x):
-                for i in range(num_parts+1):
+                for i in range(self.num_parts+1):
                     mask = float(mask_miss_aug[g_y,g_x]) / 255
                     transformed_label[i*channel_offset + g_y*grid_x + g_x] = mask
         
         self.GenerateLabelMap(transformed_label,img_aug,meta)
         
         t_label = np.copy(transformed_label)
-        weights = np.reshape(t_label, shape = [grid_y * num_parts, grid_x])
-        vec = np.reshape(np.copy(transformed_label + start_label_data), shape = [grid_y * num_parts, grid_x])
+        weights = np.reshape(t_label, shape = [grid_y * self.num_parts, grid_x])
+        vec = np.reshape(np.copy(transformed_label + start_label_data), shape = [grid_y * self.num_parts, grid_x])
         label = np.multiply(vec, weights)
         mask = np.reshape(t_label, shape = [grid_y, grid_x])
         
@@ -102,7 +102,7 @@ class DataTransformer(object):
     def TransformJoints(self,j=None):
         # Coco dataset
         jo = np.copy(j)
-        if(num_parts == 56):
+        if(self.num_parts == 56):
             # joint is a connection between 2 body parts
             from_body_part = [1,6,7,9,11,6,8,10,13,15,17,12,14,16,3,2,5,4]
             to_body_part = [1,7,7,9,11,6,8,10,13,15,17,12,14,16,3,2,5,4]
@@ -136,12 +136,12 @@ class DataTransformer(object):
         mask_miss = cv2.resize(mask_miss,(0,0),fx=scale,fy=scale,interpolation=cv.INTER_CUBIC)
         meta["objpos"] = [i * scale for i in meta["objpos"]]
 
-        for i in range(num_parts):
+        for i in range(self.num_parts):
             (meta["joint_self"])[i,0] *= scale
             (meta["joint_self"])[i,1] *= scale
         for p in range(meta["num_other_people"]):
             meta["objpos_other"][p] = [x * scale for x in meta["objpos_other"][p]]
-            for i in range(num_parts):
+            for i in range(self.num_parts):
                 meta["joint_others"][p][i,0] *= scale
                 meta["joint_others"][p][i,1] *= scale
 
@@ -162,11 +162,11 @@ class DataTransformer(object):
         mask_miss = cv2.warpAffine(src=mask_miss,M=R,flags=cv2.INTER_CUBIC,borderMode=cv2.BORDER_CONSTANT,borderValue=(255)) # borderValue 0 for MPI/255 for COCO
 
         meta["objpos"][0], meta["objpos"][1] = self.RotatePoint((meta["objpos"])[0],(meta["objpos"])[1],R)
-        for i in range(num_parts):
+        for i in range(self.num_parts):
             meta["joint_self"][i,0],meta["joint_self"][i,1] = self.RotatePoint(meta["joint_self"][i,0],meta["joint_self"][i,1],R)
         for p in range(meta["num_other_people"]):
             meta["objpos_other"][p][0], meta["objpos_other"][p][1] = self.RotatePoint(meta["objpos_other"][p][0],meta["objpos_other"][p][1],R)
-            for i in range(num_parts):
+            for i in range(self.num_parts):
                 meta["joint_others"][p][i,0], meta["joint_others"][p][i,1] = self.RotatePoint(meta["joint_others"][p][i,0],meta["joint_others"][p][i,1],R)
         return degree,img_dst,mask_miss
 
@@ -197,14 +197,14 @@ class DataTransformer(object):
         meta["objpos"][0] += offset_left
         meta["objpos"][1] += offset_up
 
-        for i in range(num_parts):
+        for i in range(self.num_parts):
             meta["joint_self"][i,0] += offset_left
             meta["joint_self"][i,1] += offset_up
 
         for p in range(meta["num_other_people"]):
             meta["objpos_other"][p][0] += offset_left
             meta["objpos_other"][p][1] += offset_up
-            for i in range(num_parts):
+            for i in range(self.num_parts):
                 meta["joint_others"][p][i,0] += offset_left
                 meta["joint_others"][p][i,1] += offset_up
         
@@ -225,7 +225,7 @@ class DataTransformer(object):
            mask_miss_aug = cv2.flip(mask_miss_aug,1)
            meta.objpos.x = w - 1 - meta.objpos.x
            
-           for i in range(num_parts):
+           for i in range(self.num_parts):
                if(meta.joint_self.joints[i] is not None):
                    (meta.joint_self.joints[i]).x = w - 1 - (meta.joint_self.joints[i]).x
             
@@ -235,7 +235,7 @@ class DataTransformer(object):
            for p in range(meta.num_other_people):
                meta.objpos_other[p].x = w - 1 - meta.objpos_other[p].x
                 
-               for i in range(num_parts):
+               for i in range(self.num_parts):
                    if(meta.joint_others[p].joints[i] is  not None):
                        meta.joint_others[p].joints[i].x = w - 1 - meta.joint_others[p].joints[i].x
                 
@@ -261,7 +261,7 @@ class DataTransformer(object):
            mask_miss_aug = cv2.flip(mask_miss_aug,1)
            meta["objpos"][0] = w - 1 - meta["objpos"][0]
            
-           for i in range(num_parts):
+           for i in range(self.num_parts):
                 meta["joint_self"][i,0] = w - 1 - meta["joint_self"][i,0]
             
            if(param.transform_body_joint):
@@ -270,7 +270,7 @@ class DataTransformer(object):
            for p in range(meta["num_other_people"]):
                meta["objpos_other"][p][0] = w - 1 - meta["objpos_other"][p][0]
                 
-               for i in range(num_parts):
+               for i in range(self.num_parts):
                    meta["joint_others"][p][i,0] = w - 1 - meta["joint_others"][p][i,0]
                 
                if(param.transform_body_joint):
@@ -295,8 +295,8 @@ class DataTransformer(object):
             return False
         return True
 
-    def SwapLeftRight(j=None):
-        if(num_parts == 56):
+    def SwapLeftRight(self,j=None):
+        if(self.num_parts == 56):
             right = [3,4,5,9,10,11,15,17]
             left = [6,7,8,12,13,14,16,18]
             for i in range(8):
@@ -320,15 +320,15 @@ class DataTransformer(object):
 
         for g_y in range(grid_y):
             for g_x in range(grid_x):
-                for i in range(num_parts+1,2*(num_parts+1)):
+                for i in range(self.num_parts+1,2*(self.num_parts+1)):
                     transformed_label[i*channelOffset + g_y*grid_x + g_x] = 0.0
 
         # Creating heatmap
-        if(num_parts == 56):
+        if(self.num_parts == 56):
             for i in range(18):
                 center = meta["joint_self"][i]
                 if(meta["joint_self"][i][2] <= 1):
-                    self.PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, stride,
+                    self.PutGaussianMaps(transformed_label + (i+self.num_parts+39)*channelOffset, center, stride,
                 grid_x, grid_y, param.sigma)
                 
                 for j in range(meta["num_other_people"]):
@@ -336,7 +336,7 @@ class DataTransformer(object):
                     if(meta["joint_others"][j][2] <= 1):
                     #center = meta.joint_others[j].joints[i]
                     #if(meta.joint_others[j].is_visible[i] <= 1):
-                        self.PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, stride,
+                        self.PutGaussianMaps(transformed_label + (i+self.num_parts+39)*channelOffset, center, stride,
                                         grid_x, grid_y, param.sigma)
 
         # Creating PAF
@@ -349,13 +349,13 @@ class DataTransformer(object):
             count = np.zeros((grid_y,grid_x))
             jo = meta["joint_self"]
             if(jo[mid_1[i]-1][2] <= 1 and jo[mid_2[i]-1][2] <= 1):
-                self.PutVecMaps(transformed_label + (num_parts+ 1+ 2*i)*channelOffset, transformed_label + (num_parts+ 2+ 2*i)*channelOffset,
+                self.PutVecMaps(transformed_label + (self.num_parts+ 1+ 2*i)*channelOffset, transformed_label + (self.num_parts+ 2+ 2*i)*channelOffset,
             count, jo[mid_1[i]-1], jo[mid_2[i]-1], stride, grid_x, grid_y, param.sigma, thre)
 
             for j in range(meta["num_other_people"]):
                 jo2 = meta["joint_others"][j]
                 if(jo2[mid_1[i]-1][2] <= 1 and jo2[mid_2[i]-1][2] <= 1):
-                    self.PutVecMaps(transformed_label + (num_parts+ 1+ 2*i)*channelOffset, transformed_label + (num_parts+ 2+ 2*i)*channelOffset,
+                    self.PutVecMaps(transformed_label + (self.num_parts+ 1+ 2*i)*channelOffset, transformed_label + (self.num_parts+ 2+ 2*i)*channelOffset,
                 count, jo2[mid_1[i]-1], jo2[mid_2[i]-1], stride, grid_x, grid_y, param.sigma, thre)   
 
         # Put background channel **** no idea what this is doing **** 
@@ -363,9 +363,9 @@ class DataTransformer(object):
             for g_x in range(grid_x):
                 maximum = 0
                 # second background channel
-                for i in range(num_parts+39,num_parts+57):
+                for i in range(self.num_parts+39,self.num_parts+57):
                     maximum = maximum if maximum > transformed_label[i*channelOffset + g_y*grid_x + g_x] else transformed_label[i*channelOffset + g_y*grid_x + g_x]
-                transformed_label[(2*num_parts+1)*channelOffset + g_y*grid_x + g_x] = max(1.0-maximum, 0.0)
+                transformed_label[(2*self.num_parts+1)*channelOffset + g_y*grid_x + g_x] = max(1.0-maximum, 0.0)
 
     def PutGaussianMaps(self,entry,center,stride,grid_x,grid_y,sigma):
         start = stride/2.0 - 0.5 # 0 if stride = 1, 0.5 if stride = 2, 1.5 if stride = 4, ...
@@ -543,7 +543,7 @@ class DataTransformer(object):
             cv2.imwrite('padded_img.jpg', img)
             width = 64
         
-        return img, joint_all, mask_miss[...,None], mask_all[...,None] if "COCO" in joint_all["dataset"] else None
+        return img, joint_all, mask_miss[...,None], mask_all[...,None] if ("dataset" in joint_all) and ("COCO" in joint_all["dataset"]) else None
 
     def create_masks(self,img_anns,img_shape):
         h, w, c = img_shape
@@ -580,7 +580,7 @@ class DataTransformer(object):
     
     def format_meta_data(self,meta):
 
-        for i in range(np_ann):
+        for i in range(self.np_ann):
             joint = meta["joint_self"]
             if(joint[i,2] == 2):
                 joint[i,2] = 3
@@ -590,7 +590,7 @@ class DataTransformer(object):
                     joint[i,2] = 2
         
         for i in range(meta["numOtherPeople"]):
-            for j in range(np_ann):
+            for j in range(self.np_ann):
                 joint = (meta["joint_others"])[i]
                 if(joint[j,2] == 2):
                     joint[j,2] = 3
