@@ -101,31 +101,34 @@ else:
         val_anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
         val_img_dir = os.path.join(dataset_dir, "val2017")
         # Retrieve file names and create tf constants
-        tr_file_names = tf.constant(os.listdir(tr_img_dir))
-        val_file_names = tf.constant(os.listdir(val_img_dir))        
+        tr_file_names = os.listdir(tr_img_dir)
+        val_file_names = os.listdir(val_img_dir)
+
+        with tf.Session() as sess:        
+            # Create dataset
+            if train:
+                dataset = tf.data.Dataset.from_tensor_slices(tr_file_names)
+            else:
+                dataset = tf.data.Dataset.from_tensor_slices(val_file_names)
             
-        # Create dataset
-        if train:
-            dataset = tf.data.Dataset.from_tensor_slices(tr_file_names)
-        else:
-            dataset = tf.data.Dataset.from_tensor_slices(val_file_names)
-        
-        # Map dataset *** break big function into multiple map functions
-        if train:
-            dataset = dataset.map(lambda filename: tuple(tf.py_func(_parse_tr_data,[filename],filename.dtype))) # Output type incorrect
-        else:
-            dataset = val_dataset.map(lambda filename:tuple(tf.py_func(_parse_va_data,[filename],filename.dtype)))
-        
-        # Create iterators
-        iterator = dataset.make_one_shot_iterator()
-        next_batch = iterator.get_next()
-        # Yield data batch
-        while True:
-            yield K.get_session().run(next_batch)
+            # Map dataset *** break big function into multiple map functions
+            if train:
+                dataset = dataset.map(lambda filename: tuple(tf.py_func(_parse_tr_data,[filename],[filename.dtype]))) # Output type incorrect
+                dataset  = dataset.shuffle(50).batch(batch_size)
+            else:
+                dataset = dataset.map(lambda filename:tuple(tf.py_func(_parse_va_data,[filename],[filename.dtype])))
+                dataset  = dataset.shuffle(50).batch(batch_size)
+            
+            # Create iterators
+            iterator = dataset.make_one_shot_iterator()
+            next_batch = iterator.get_next()
+            # Yield data batch
+            while True:
+                yield sess.run(next_batch)
 
     train_di = create_data_generator(train=True)
     train_samples = 20584
-    val_di = create_data_generator(train=False)            
+    val_di = create_data_generator(train=False)
 
 # setup lr multipliers for conv layers
 lr_mult=dict()
