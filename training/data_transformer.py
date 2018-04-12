@@ -85,10 +85,10 @@ class DataTransformer(object):
         self.GenerateLabelMap(transformed_label,img_aug,meta)
         
         t_label = np.copy(transformed_label)
-        weights = np.reshape(t_label, shape = [grid_x, grid_y * num_parts])
-        vec = np.reshape(np.copy(transformed_label + start_label_data), shape = [grid_x, grid_y * num_parts])
+        weights = np.reshape(t_label, shape = [grid_y * num_parts, grid_x])
+        vec = np.reshape(np.copy(transformed_label + start_label_data), shape = [grid_y * num_parts, grid_x])
         label = np.multiply(vec, weights)
-        mask = np.reshape(t_label, shape = [grid_x, grid_y])
+        mask = np.reshape(t_label, shape = [grid_y, grid_x])
         
         return data_img, mask, label 
     

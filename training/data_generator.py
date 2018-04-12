@@ -3,6 +3,7 @@ from pycocotools.coco import COCO
 import os
 import os.path
 
+
 class TransformationParameter(object): 
     mirror = False
     crop_size = 0
@@ -77,14 +78,16 @@ def preprocess(train=None,filename=None):
     return data_img, mask_img,label
 
 def _parse_tr_data(filename=None):
-    # TODO(someone): test preprocess with coco dataset images 
     # *** After data is parsed from server ... if we get these shapes correct, we're golden!
     # *** data_img -> (3,368,368) ***
     # *** mask_img -> (46,46) ***
     # *** label -> (57,46,46) ***
-    print(filename)
-    data_img, mask_img, label = preprocess(True,filename)
-    print("after preprocess")
+    data_img, mask_img, label = preprocess(True, filename)
+
+    print(data_img.shape)
+    print(mask_img.shape)
+    print(label.shape)
+
     # image
     data_img = np.transpose(data_img, (1, 2, 0))
     batches_x[sample_idx]=dta_img[np.newaxis, ...]
@@ -126,4 +129,4 @@ def _parse_tr_data(filename=None):
 
 def _parse_va_data(filename=None):
     print("You thought this function did something huh?")
- 
+    
