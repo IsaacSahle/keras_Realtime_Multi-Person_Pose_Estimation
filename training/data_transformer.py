@@ -5,6 +5,8 @@ import random
 from math import exp,sqrt
 from point_operations import Point,addPoints,addScalar,mulScalar,subtractPoint
 from pycocotools.coco import COCO
+import os
+import numpy as np
 
 class AugmentSelection(object):
     flip = None
@@ -34,8 +36,8 @@ class DataTransformer(object):
 
     def transform(self,filename,anno_path,img_dir):
         aug = AugmentSelection(False,0.0,(),0)
-        coco = COCO(anno_path)
-
+        coco = COCO(annotation_file=anno_path)
+        filename = filename.decode("utf-8")
         img,meta,mask_miss,mask_all = self.create_data_info(coco,filename,img_dir)
 
         # Perform CLAHE
@@ -419,12 +421,17 @@ class DataTransformer(object):
     
     def create_data_info(self,coco,filename,img_dir):
         img_id = filename[:len(filename) - 4]
+        print("before*****")
         ann_ids = coco.getAnnIds(imgIds=img_id)
         img_anns = coco.loadAnns(ann_ids)
-
+        print("after*****")
         numPeople = len(img_anns)
-        image = coco.imgs[img_id]
-        h, w = image['height'], image['width']
+        # image = coco.imgs[img_id]
+        print("imageeee")
+        img_path = os.path.join(img_dir, '%s.jpg' % img_id)
+        img = cv2.imread(img_path)
+        h, w = img.shape[0],img.shape[1]
+        
         dataset_type = "COCO"
 
         print("Image ID ", img_id)
@@ -493,7 +500,7 @@ class DataTransformer(object):
             joint_all["annolist_index"] = i
 
             # set image path
-            joint_all["img_path"] = os.path.join(img_dir, '%012d.jpg' % img_id)
+            joint_all["img_path"] = os.path.join(img_dir, '%s.jpg' % img_id)
 
             # set the main person
             joint_all["objpos"] = persons[0]["objpos"]
@@ -524,7 +531,6 @@ class DataTransformer(object):
 
             joint_all["numOtherPeople"] = lenOthers
 
-        img = cv2.imread(joint_all["img_path"])
         mask_all,mask_miss = self.create_masks(img_anns,img.shape)
 
         height = img.shape[0]
@@ -537,7 +543,7 @@ class DataTransformer(object):
             cv2.imwrite('padded_img.jpg', img)
             width = 64
         
-        return img, joint_all, mask_miss[...,None], mask_all[...,None] if "COCO" in joint_all['dataset'] else None
+        return img, joint_all, mask_miss[...,None], mask_all[...,None] if "COCO" in joint_all["dataset"] else None
 
     def create_masks(self,img_anns,img_shape):
         h, w, c = img_shape
