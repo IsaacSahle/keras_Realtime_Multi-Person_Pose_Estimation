@@ -32,11 +32,11 @@ class DataTransformer(object):
         self.np_ann = param.num_parts_in_annot
         self.num_parts = param.num_parts   
 
-    def transform(filename=None,anno_path=None,img_dir=None):
+    def transform(self,filename,anno_path,img_dir):
         aug = AugmentSelection(False,0.0,(),0)
         coco = COCO(anno_path)
 
-        img,meta,mask_miss,mask_all = create_data_info(coco,filename,img_dir)
+        img,meta,mask_miss,mask_all = self.create_data_info(coco,filename,img_dir)
 
         # Perform CLAHE
         #if(param.do_clahe):
@@ -51,19 +51,19 @@ class DataTransformer(object):
             # cv::cvtColor(img, img, CV_BGR2GRAY);
             # cv::cvtColor(img, img, CV_GRAY2BGR);
         
-        meta = format_meta_data(data)
+        meta = self.format_meta_data(data)
 
-        if(param.transform_body_joint):
-            TransformMetaJoints(meta)
+        if(self.param.transform_body_joint):
+            self.TransformMetaJoints(meta)
         
         # Start transformation
         img_aug = np.zeros(param.crop_size_y,param.crop_size_x,3)
         mask_miss_aug = None
 
-        aug.scale,img_temp,mask_miss = AugmentationScale(img,mask_miss,meta)
-        aug.degree,img_temp2,mask_miss = AugmentationRotate(img_temp,mask_miss,meta)
-        aug.crop,img_temp3,mask_miss_aug = AugmentationCropped(img_temp2,mask_miss,meta)
-        aug.flip,img_aug,mask_miss_aug = AugmentationFlip(img_temp3,mask_miss_aug,meta)
+        aug.scale,img_temp,mask_miss = self.AugmentationScale(img,mask_miss,meta)
+        aug.degree,img_temp2,mask_miss = self.AugmentationRotate(img_temp,mask_miss,meta)
+        aug.crop,img_temp3,mask_miss_aug = self.AugmentationCropped(img_temp2,mask_miss,meta)
+        aug.flip,img_aug,mask_miss_aug = self.AugmentationFlip(img_temp3,mask_miss_aug,meta)
 
         mask_miss_aug = cv2.resize(mask_miss_aug,(0,0),fx=1.0/param.stride,fy=1.0/param.stride,interpolation=cv2.INTER_CUBIC)
 
@@ -82,7 +82,7 @@ class DataTransformer(object):
                     mask = float(mask_miss_aug[g_y,g_x]) / 255
                     transformed_label[i*channel_offset + g_y*grid_x + g_x] = mask
         
-        GenerateLabelMap(transformed_label,img_aug,meta)
+        self.GenerateLabelMap(transformed_label,img_aug,meta)
         
         t_label = np.copy(transformed_label)
         weights = np.reshape(t_label, shape = [grid_x, grid_y * num_parts])
@@ -92,12 +92,12 @@ class DataTransformer(object):
         
         return data_img, mask, label 
     
-    def TransformMetaJoints(meta=None):
-        TransformJoints(meta["joint_self"]) # joint_self,joint_others => (17,3)
+    def TransformMetaJoints(self,meta=None):
+        self.TransformJoints(meta["joint_self"]) # joint_self,joint_others => (17,3)
         for j in meta["joint_others"]:
-            TransformJoints(j)
+            self.TransformJoints(j)
 
-    def TransformJoints(j=None):
+    def TransformJoints(self,j=None):
         # Coco dataset
         jo = np.copy(j)
         if(num_parts == 56):
@@ -118,7 +118,7 @@ class DataTransformer(object):
                     jo[i,2] = 1 if(j[from_body_part[i]-1,2] != 0 and j[to_body_part[i]-1,2] != 0) else 0
         j = np.copy(jo)
 
-    def AugmentationScale(img_src,mask_miss,meta):
+    def AugmentationScale(self,img_src,mask_miss,meta):
         dice = random.random()
         if(dice > param.scale_prob):
             img_temp = np.copy(img_src) # *** will probably break check when testing ***
@@ -145,7 +145,7 @@ class DataTransformer(object):
 
         return scale_multiplier,img_temp,mask_miss
     
-    def AugmentationRotate(img_src,mask_miss, meta):
+    def AugmentationRotate(self,img_src,mask_miss, meta):
         if(param.aug_way == "rand"):
             dice = random.random()
             degree = (dice - 0.5) * 2 * param.max_rotate_degree
@@ -159,16 +159,16 @@ class DataTransformer(object):
         img_dst = cv2.warpAffine(src=img_src,M=R,flags=cv2.INTER_CUBIC,borderMode=cv2.BORDER_CONSTANT,borderValue=(128,128,128)) 
         mask_miss = cv2.warpAffine(src=mask_miss,M=R,flags=cv2.INTER_CUBIC,borderMode=cv2.BORDER_CONSTANT,borderValue=(255)) # borderValue 0 for MPI/255 for COCO
 
-        meta["objpos"][0], meta["objpos"][1] = RotatePoint((meta["objpos"])[0],(meta["objpos"])[1],R)
+        meta["objpos"][0], meta["objpos"][1] = self.RotatePoint((meta["objpos"])[0],(meta["objpos"])[1],R)
         for i in range(num_parts):
-            meta["joint_self"][i,0],meta["joint_self"][i,1] = RotatePoint(meta["joint_self"][i,0],meta["joint_self"][i,1],R)
+            meta["joint_self"][i,0],meta["joint_self"][i,1] = self.RotatePoint(meta["joint_self"][i,0],meta["joint_self"][i,1],R)
         for p in range(meta["num_other_people"]):
-            meta["objpos_other"][p][0], meta["objpos_other"][p][1] = RotatePoint(meta["objpos_other"][p][0],meta["objpos_other"][p][1],R)
+            meta["objpos_other"][p][0], meta["objpos_other"][p][1] = self.RotatePoint(meta["objpos_other"][p][0],meta["objpos_other"][p][1],R)
             for i in range(num_parts):
-                meta["joint_others"][p][i,0], meta["joint_others"][p][i,1] = RotatePoint(meta["joint_others"][p][i,0],meta["joint_others"][p][i,1],R)
+                meta["joint_others"][p][i,0], meta["joint_others"][p][i,1] = self.RotatePoint(meta["joint_others"][p][i,0],meta["joint_others"][p][i,1],R)
         return degree,img_dst,mask_miss
 
-    def AugmentationCropped(img_src,mask_miss,meta):
+    def AugmentationCropped(self,img_src,mask_miss,meta):
         dice_x = random.random()
         dice_y = random.random()
         
@@ -187,7 +187,7 @@ class DataTransformer(object):
             for j in range(param.crop_size_x):
                 coord_x_on_img = center[0] - param.crop_size_x/2 + j
                 coord_y_on_img = center[1] - param.crop_size_y/2 + i
-                if(OnPlane(coord_x_on_img,coord_y_on_img,img_src.shape)):
+                if(self.OnPlane(coord_x_on_img,coord_y_on_img,img_src.shape)):
                     img_dst[i][j] = img_src[coord_y_on_img][coord_x_on_img]
                     mask_miss_aug[i][j] = mask_miss[coord_y_on_img][coord_x_on_img]
         
@@ -208,7 +208,7 @@ class DataTransformer(object):
         
         return [x_offset,y_offset],img_dst,mask_miss_aug
 
-    def AugmentationFlip(img_src,mask_miss_aug,meta):
+    def AugmentationFlip(self,img_src,mask_miss_aug,meta):
         if(param.aug_way == "rand"):
             dice = random.random()
             doflip = (dice <= param.flip_prob)
@@ -228,7 +228,7 @@ class DataTransformer(object):
                    (meta.joint_self.joints[i]).x = w - 1 - (meta.joint_self.joints[i]).x
             
            if(param.transform_body_joint):
-               SwapLeftRight(meta.joint_self)
+               self.SwapLeftRight(meta.joint_self)
         
            for p in range(meta.num_other_people):
                meta.objpos_other[p].x = w - 1 - meta.objpos_other[p].x
@@ -238,13 +238,13 @@ class DataTransformer(object):
                        meta.joint_others[p].joints[i].x = w - 1 - meta.joint_others[p].joints[i].x
                 
                if(param.transform_body_joint):
-                   SwapLeftRight(meta.joint_others[p])
+                   self.SwapLeftRight(meta.joint_others[p])
         else:
             img_aug = np.copy(img_src)
         
         return doflip,img_aug,mask_miss_aug
     
-    def AugmentationFlip(img_src,mask_miss_aug,meta):
+    def AugmentationFlip(self,img_src,mask_miss_aug,meta):
         if(param.aug_way == "rand"):
             dice = random.random()
             doflip = (dice <= param.flip_prob)
@@ -263,7 +263,7 @@ class DataTransformer(object):
                 meta["joint_self"][i,0] = w - 1 - meta["joint_self"][i,0]
             
            if(param.transform_body_joint):
-               SwapLeftRight(meta["joint_self"])
+               self.SwapLeftRight(meta["joint_self"])
         
            for p in range(meta["num_other_people"]):
                meta["objpos_other"][p][0] = w - 1 - meta["objpos_other"][p][0]
@@ -272,13 +272,13 @@ class DataTransformer(object):
                    meta["joint_others"][p][i,0] = w - 1 - meta["joint_others"][p][i,0]
                 
                if(param.transform_body_joint):
-                   SwapLeftRight(meta["joint_others"][p])
+                   self.SwapLeftRight(meta["joint_others"][p])
         else:
             img_aug = np.copy(img_src)
         
         return doflip,img_aug,mask_miss_aug
     
-    def RotatePoint(x=None,y=None,R=None):
+    def RotatePoint(self,x=None,y=None,R=None):
         # Come back and check that shapes are correct
         point = np.asarray([p.x,p.y,1.0])
         point.reshape((3,1))
@@ -286,7 +286,7 @@ class DataTransformer(object):
         new_point = R * point
         return new_point[0][0],new_point[1][0]
     
-    def OnPlane(x=None,y=None,img_shape=None):
+    def OnPlane(self,x=None,y=None,img_shape=None):
         if (x < 0 or y < 0):
             return False
         if (x >= img_shape[1] or y >= img_shape[0]):
@@ -307,7 +307,7 @@ class DataTransformer(object):
                 j[ri,2] = j[li,2]
                 j[li,2] = temp_v
     
-    def GenerateLabelMap(transformed_label,img_aug,meta):
+    def GenerateLabelMap(self,transformed_label,img_aug,meta):
 
         rezX = img_aug.shape[1]
         rezY = img_aug.shape[0]
@@ -326,7 +326,7 @@ class DataTransformer(object):
             for i in range(18):
                 center = meta["joint_self"][i]
                 if(meta["joint_self"][i][2] <= 1):
-                    PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, stride,
+                    self.PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, stride,
                 grid_x, grid_y, param.sigma)
                 
                 for j in range(meta["num_other_people"]):
@@ -334,7 +334,7 @@ class DataTransformer(object):
                     if(meta["joint_others"][j][2] <= 1):
                     #center = meta.joint_others[j].joints[i]
                     #if(meta.joint_others[j].is_visible[i] <= 1):
-                        PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, stride,
+                        self.PutGaussianMaps(transformed_label + (i+num_parts+39)*channelOffset, center, stride,
                                         grid_x, grid_y, param.sigma)
 
         # Creating PAF
@@ -347,13 +347,13 @@ class DataTransformer(object):
             count = np.zeros((grid_y,grid_x))
             jo = meta["joint_self"]
             if(jo[mid_1[i]-1][2] <= 1 and jo[mid_2[i]-1][2] <= 1):
-                PutVecMaps(transformed_label + (num_parts+ 1+ 2*i)*channelOffset, transformed_label + (num_parts+ 2+ 2*i)*channelOffset,
+                self.PutVecMaps(transformed_label + (num_parts+ 1+ 2*i)*channelOffset, transformed_label + (num_parts+ 2+ 2*i)*channelOffset,
             count, jo[mid_1[i]-1], jo[mid_2[i]-1], stride, grid_x, grid_y, param.sigma, thre)
 
             for j in range(meta["num_other_people"]):
                 jo2 = meta["joint_others"][j]
                 if(jo2[mid_1[i]-1][2] <= 1 and jo2[mid_2[i]-1][2] <= 1):
-                    PutVecMaps(transformed_label + (num_parts+ 1+ 2*i)*channelOffset, transformed_label + (num_parts+ 2+ 2*i)*channelOffset,
+                    self.PutVecMaps(transformed_label + (num_parts+ 1+ 2*i)*channelOffset, transformed_label + (num_parts+ 2+ 2*i)*channelOffset,
                 count, jo2[mid_1[i]-1], jo2[mid_2[i]-1], stride, grid_x, grid_y, param.sigma, thre)   
 
         # Put background channel **** no idea what this is doing **** 
@@ -365,7 +365,7 @@ class DataTransformer(object):
                     maximum = maximum if maximum > transformed_label[i*channelOffset + g_y*grid_x + g_x] else transformed_label[i*channelOffset + g_y*grid_x + g_x]
                 transformed_label[(2*num_parts+1)*channelOffset + g_y*grid_x + g_x] = max(1.0-maximum, 0.0)
 
-    def PutGaussianMaps(entry,center,stride,grid_x,grid_y,sigma):
+    def PutGaussianMaps(self,entry,center,stride,grid_x,grid_y,sigma):
         start = stride/2.0 - 0.5 # 0 if stride = 1, 0.5 if stride = 2, 1.5 if stride = 4, ...
         for i in range(grid_y):
             for j in range(grid_x):
@@ -382,7 +382,7 @@ class DataTransformer(object):
                 if (entry[g_y*grid_x + g_x] > 1):
                     entry[g_y*grid_x + g_x] = 1
 
-    def PutVecMaps(entryX,entryY,count,centerA,centerB,stride,grid_x,grid_y,sigma,thre):         
+    def PutVecMaps(self,entryX,entryY,count,centerA,centerB,stride,grid_x,grid_y,sigma,thre):         
         centerB = np.multiply(centerB,0.125)
         centerA = np.mulitply(centerA,0.125)
 
@@ -417,7 +417,7 @@ class DataTransformer(object):
                        entryY[g_y*grid_x + g_x] = (entryY[g_y*grid_x + g_x]*cnt + bc[1]) / (cnt + 1)
                        count[g_y][g_x] = cnt + 1
     
-    def create_data_info(coco,filename,img_dir):
+    def create_data_info(self,coco,filename,img_dir):
         img_id = filename[:len(filename) - 4]
         ann_ids = coco.getAnnIds(imgIds=img_id)
         img_anns = coco.loadAnns(ann_ids)
@@ -525,7 +525,7 @@ class DataTransformer(object):
             joint_all["numOtherPeople"] = lenOthers
 
         img = cv2.imread(joint_all["img_path"])
-        mask_all,mask_miss = create_masks(img_anns,img.shape)
+        mask_all,mask_miss = self.create_masks(img_anns,img.shape)
 
         height = img.shape[0]
         width = img.shape[1]
@@ -539,7 +539,7 @@ class DataTransformer(object):
         
         return img, joint_all, mask_miss[...,None], mask_all[...,None] if "COCO" in joint_all['dataset'] else None
 
-    def create_masks(img_anns,img_shape):
+    def create_masks(self,img_anns,img_shape):
         h, w, c = img_shape
 
         mask_all = np.zeros((h, w), dtype=np.uint8)
@@ -572,7 +572,7 @@ class DataTransformer(object):
 
         return mask_all * 255, mask_miss * 255
     
-    def format_meta_data(meta):
+    def format_meta_data(self,meta):
 
         for i in range(np_ann):
             joint = meta["joint_self"]
