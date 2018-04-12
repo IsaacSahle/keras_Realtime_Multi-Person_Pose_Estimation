@@ -3,6 +3,7 @@ from pycocotools.coco import COCO
 import os
 import os.path
 
+
 class TransformationParameter(object): 
     mirror = False
     crop_size = 0
@@ -30,7 +31,7 @@ class TransformationParameter(object):
     #def __init__(self):
         # Nothing yet
 
-def preprocessing(train=None):
+def preprocess(train=None, filename=None):
     params = TransformationParameter()
     params.stride = 8
     params.crop_size_x = 368
@@ -76,13 +77,17 @@ def preprocessing(train=None):
     return data_img, mask_img,label
 
 def _parse_tr_data(filename=None):
-    # TODO(someone): test preprocess with coco dataset images 
+    print("\nCHECK 2\n")
 
     # *** After data is parsed from server ... if we get these shapes correct, we're golden!
     # *** data_img -> (3,368,368) ***
     # *** mask_img -> (46,46) ***
     # *** label -> (57,46,46) ***
-    data_img, mask_img, label = preprocess(True)
+    data_img, mask_img, label = preprocess(True, filename)
+
+    print(data_img.shape)
+    print(mask_img.shape)
+    print(label.shape)
 
     # image
     data_img = np.transpose(data_img, (1, 2, 0))
@@ -115,15 +120,17 @@ def _parse_tr_data(filename=None):
         batch_y1 = np.concatenate(batches_y1)
         batch_y2 = np.concatenate(batches_y2)
 
-        yield [batch_x, batch_x1,  batch_x2], \
+        return [batch_x, batch_x1,  batch_x2], \
                 [batch_y1, batch_y2,
                 batch_y1, batch_y2,
                 batch_y1, batch_y2,
                 batch_y1, batch_y2,
                 batch_y1, batch_y2,
                 batch_y1, batch_y2]
-   
 
 def _parse_va_data(filename=None):
     print("You thought this function did something huh?")
+
+_parse_tr_data("000000000009.jpg")
+
     

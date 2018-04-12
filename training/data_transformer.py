@@ -32,11 +32,133 @@ class DataTransformer(object):
         self.np_ann = param.num_parts_in_annot
         self.num_parts = param.num_parts   
 
-    def transform(filename=None,anno_path=None,img_dir=None):
+    def create_data_info(self, coco,filename,img_dir):
+        img_id = filename[:len(filename) - 4]
+        ann_ids = coco.getAnnIds(imgIds=img_id)
+        img_anns = coco.loadAnns(ann_ids)
+
+        numPeople = len(img_anns)
+        image = coco.imgs[img_id]
+        h, w = image['height'], image['width']
+        dataset_type = "COCO"
+
+        print("Image ID ", img_id)
+
+        persons = []
+        prev_center = []
+        joint_all = {}
+
+        for p in range(numPeople):
+
+            # skip this person if parts number is too low or if
+            # segmentation area is too small
+            if img_anns[p]["num_keypoints"] < 5 or img_anns[p]["area"] < 32 * 32:
+                continue
+
+            anno = img_anns[p]["keypoints"]
+
+            pers = {}
+
+            person_center = [img_anns[p]["bbox"][0] + img_anns[p]["bbox"][2] / 2,
+                                img_anns[p]["bbox"][1] + img_anns[p]["bbox"][3] / 2]
+
+            # skip this person if the distance to exiting person is too small
+            flag = 0
+            for pc in prev_center:
+                a = np.expand_dims(pc[:2], axis=0)
+                b = np.expand_dims(person_center, axis=0)
+                dist = cdist(a, b)[0]
+                if dist < pc[2]*0.3:
+                    flag = 1
+                    continue
+
+            if flag == 1:
+                continue
+
+            pers["objpos"] = person_center
+            pers["bbox"] = img_anns[p]["bbox"]
+            pers["segment_area"] = img_anns[p]["area"]
+            pers["num_keypoints"] = img_anns[p]["num_keypoints"]
+
+            pers["joint"] = np.zeros((17, 3))
+            for part in range(17):
+                pers["joint"][part, 0] = anno[part * 3]
+                pers["joint"][part, 1] = anno[part * 3 + 1]
+
+                if anno[part * 3 + 2] == 2:
+                    pers["joint"][part, 2] = 1
+                elif anno[part * 3 + 2] == 1:
+                    pers["joint"][part, 2] = 0
+                else:
+                    pers["joint"][part, 2] = 2
+
+            pers["scale_provided"] = img_anns[p]["bbox"][3] / 368
+
+            persons.append(pers)
+            prev_center.append(np.append(person_center, max(img_anns[p]["bbox"][2], img_anns[p]["bbox"][3])))
+
+
+        if len(persons) > 0:
+
+            joint_all["dataset"] = dataset_type
+
+            joint_all["img_width"] = w
+            joint_all["img_height"] = h
+            joint_all["image_id"] = img_id
+            joint_all["annolist_index"] = i
+
+            # set image path
+            joint_all["img_path"] = os.path.join(img_dir, '%012d.jpg' % img_id)
+
+            # set the main person
+            joint_all["objpos"] = persons[0]["objpos"]
+            joint_all["bbox"] = persons[0]["bbox"]
+            joint_all["segment_area"] = persons[0]["segment_area"]
+            joint_all["num_keypoints"] = persons[0]["num_keypoints"]
+            joint_all["joint_self"] = persons[0]["joint"]
+            joint_all["scale_provided"] = persons[0]["scale_provided"]
+
+            # set other persons
+            joint_all["joint_others"] = []
+            joint_all["scale_provided_other"] = []
+            joint_all["objpos_other"] = []
+            joint_all["bbox_other"] = []
+            joint_all["segment_area_other"] = []
+            joint_all["num_keypoints_other"] = []
+
+            for ot in range(1, len(persons)):
+                joint_all["joint_others"].append(persons[ot]["joint"])
+                joint_all["scale_provided_other"].append(persons[ot]["scale_provided"])
+                joint_all["objpos_other"].append(persons[ot]["objpos"])
+                joint_all["bbox_other"].append(persons[ot]["bbox"])
+                joint_all["segment_area_other"].append(persons[ot]["segment_area"])
+                joint_all["num_keypoints_other"].append(persons[ot]["num_keypoints"])
+
+            joint_all["people_index"] = 0
+            lenOthers = len(persons) - 1
+
+            joint_all["numOtherPeople"] = lenOthers
+
+        img = cv2.imread(joint_all["img_path"])
+        mask_all,mask_miss = create_masks(img_anns,img.shape)
+
+        height = img.shape[0]
+        width = img.shape[1]
+
+        if (width < 64):
+            img = cv2.copyMakeBorder(img, 0, 0, 0, 64 - width, cv2.BORDER_CONSTANT,
+                                     value=(128, 128, 128))
+            print('saving padded image!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            cv2.imwrite('padded_img.jpg', img)
+            width = 64
+        
+        return img, joint_all, mask_miss[...,None], mask_all[...,None] if "COCO" in joint_all['dataset'] else None
+
+    def transform(self, filename=None,anno_path=None,img_dir=None):
         aug = AugmentSelection(False,0.0,(),0)
         coco = COCO(anno_path)
 
-        img,meta,mask_miss,mask_all = create_data_info(coco,filename,img_dir)
+        img,meta,mask_miss,mask_all = self.create_data_info(coco,filename,img_dir)
 
         # Perform CLAHE
         #if(param.do_clahe):
@@ -85,10 +207,10 @@ class DataTransformer(object):
         GenerateLabelMap(transformed_label,img_aug,meta)
         
         t_label = np.copy(transformed_label)
-        weights = np.reshape(t_label, shape = [grid_x, grid_y * num_parts])
-        vec = np.reshape(np.copy(transformed_label + start_label_data), shape = [grid_x, grid_y * num_parts])
+        weights = np.reshape(t_label, shape = [grid_y * num_parts, grid_x])
+        vec = np.reshape(np.copy(transformed_label + start_label_data), shape = [grid_y * num_parts, grid_x])
         label = np.multiply(vec, weights)
-        mask = np.reshape(t_label, shape = [grid_x, grid_y])
+        mask = np.reshape(t_label, shape = [grid_y, grid_x])
         
         return data_img, mask, label 
     
@@ -417,127 +539,7 @@ class DataTransformer(object):
                        entryY[g_y*grid_x + g_x] = (entryY[g_y*grid_x + g_x]*cnt + bc[1]) / (cnt + 1)
                        count[g_y][g_x] = cnt + 1
     
-    def create_data_info(coco,filename,img_dir):
-        img_id = filename[:len(filename) - 4]
-        ann_ids = coco.getAnnIds(imgIds=img_id)
-        img_anns = coco.loadAnns(ann_ids)
-
-        numPeople = len(img_anns)
-        image = coco.imgs[img_id]
-        h, w = image['height'], image['width']
-        dataset_type = "COCO"
-
-        print("Image ID ", img_id)
-
-        persons = []
-        prev_center = []
-        joint_all = {}
-
-        for p in range(numPeople):
-
-            # skip this person if parts number is too low or if
-            # segmentation area is too small
-            if img_anns[p]["num_keypoints"] < 5 or img_anns[p]["area"] < 32 * 32:
-                continue
-
-            anno = img_anns[p]["keypoints"]
-
-            pers = {}
-
-            person_center = [img_anns[p]["bbox"][0] + img_anns[p]["bbox"][2] / 2,
-                                img_anns[p]["bbox"][1] + img_anns[p]["bbox"][3] / 2]
-
-            # skip this person if the distance to exiting person is too small
-            flag = 0
-            for pc in prev_center:
-                a = np.expand_dims(pc[:2], axis=0)
-                b = np.expand_dims(person_center, axis=0)
-                dist = cdist(a, b)[0]
-                if dist < pc[2]*0.3:
-                    flag = 1
-                    continue
-
-            if flag == 1:
-                continue
-
-            pers["objpos"] = person_center
-            pers["bbox"] = img_anns[p]["bbox"]
-            pers["segment_area"] = img_anns[p]["area"]
-            pers["num_keypoints"] = img_anns[p]["num_keypoints"]
-
-            pers["joint"] = np.zeros((17, 3))
-            for part in range(17):
-                pers["joint"][part, 0] = anno[part * 3]
-                pers["joint"][part, 1] = anno[part * 3 + 1]
-
-                if anno[part * 3 + 2] == 2:
-                    pers["joint"][part, 2] = 1
-                elif anno[part * 3 + 2] == 1:
-                    pers["joint"][part, 2] = 0
-                else:
-                    pers["joint"][part, 2] = 2
-
-            pers["scale_provided"] = img_anns[p]["bbox"][3] / 368
-
-            persons.append(pers)
-            prev_center.append(np.append(person_center, max(img_anns[p]["bbox"][2], img_anns[p]["bbox"][3])))
-
-
-        if len(persons) > 0:
-
-            joint_all["dataset"] = dataset_type
-
-            joint_all["img_width"] = w
-            joint_all["img_height"] = h
-            joint_all["image_id"] = img_id
-            joint_all["annolist_index"] = i
-
-            # set image path
-            joint_all["img_path"] = os.path.join(img_dir, '%012d.jpg' % img_id)
-
-            # set the main person
-            joint_all["objpos"] = persons[0]["objpos"]
-            joint_all["bbox"] = persons[0]["bbox"]
-            joint_all["segment_area"] = persons[0]["segment_area"]
-            joint_all["num_keypoints"] = persons[0]["num_keypoints"]
-            joint_all["joint_self"] = persons[0]["joint"]
-            joint_all["scale_provided"] = persons[0]["scale_provided"]
-
-            # set other persons
-            joint_all["joint_others"] = []
-            joint_all["scale_provided_other"] = []
-            joint_all["objpos_other"] = []
-            joint_all["bbox_other"] = []
-            joint_all["segment_area_other"] = []
-            joint_all["num_keypoints_other"] = []
-
-            for ot in range(1, len(persons)):
-                joint_all["joint_others"].append(persons[ot]["joint"])
-                joint_all["scale_provided_other"].append(persons[ot]["scale_provided"])
-                joint_all["objpos_other"].append(persons[ot]["objpos"])
-                joint_all["bbox_other"].append(persons[ot]["bbox"])
-                joint_all["segment_area_other"].append(persons[ot]["segment_area"])
-                joint_all["num_keypoints_other"].append(persons[ot]["num_keypoints"])
-
-            joint_all["people_index"] = 0
-            lenOthers = len(persons) - 1
-
-            joint_all["numOtherPeople"] = lenOthers
-
-        img = cv2.imread(joint_all["img_path"])
-        mask_all,mask_miss = create_masks(img_anns,img.shape)
-
-        height = img.shape[0]
-        width = img.shape[1]
-
-        if (width < 64):
-            img = cv2.copyMakeBorder(img, 0, 0, 0, 64 - width, cv2.BORDER_CONSTANT,
-                                     value=(128, 128, 128))
-            print('saving padded image!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            cv2.imwrite('padded_img.jpg', img)
-            width = 64
-        
-        return img, joint_all, mask_miss[...,None], mask_all[...,None] if "COCO" in joint_all['dataset'] else None
+    
 
     def create_masks(img_anns,img_shape):
         h, w, c = img_shape
