@@ -31,7 +31,7 @@ class TransformationParameter(object):
     #def __init__(self):
         # Nothing yet
 
-def preprocess(train=None,filename=None):
+def preprocess(train=None,data=None):
     params = TransformationParameter()
     params.stride = 8
     params.crop_size_x = 368
@@ -63,21 +63,21 @@ def preprocess(train=None,filename=None):
     transformed_label = [] # size: grid_x * grid_y * np
 
     # Dataset 
-    dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
-    if train:
-        anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
-        img_dir = os.path.join(dataset_dir, "train2017")
-    else:
-        anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
-        img_dir = os.path.join(dataset_dir, "val2017")
+    # dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
+    # if train:
+    #     anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
+    #     img_dir = os.path.join(dataset_dir, "train2017")
+    # else:
+    #     anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
+    #     img_dir = os.path.join(dataset_dir, "val2017")
 
-    print("Transforming ... " , img_dir)
+    print("Transforming ... " , data[0])
     # Transformation
-    data_img,mask_img,label = dataTransformer.transform(filename,anno_path,img_dir)
+    data_img,mask_img,label = dataTransformer.transform(data)
 
     return data_img, mask_img,label
 
-def _parse_tr_data(filename=None):
+def _parse_tr_data(data=None): # data[0] = img_path, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
     # *** After data is parsed from server ... if we get these shapes correct, we're golden!
     # *** data_img -> (3,368,368) ***
     # *** mask_img -> (46,46) ***

@@ -34,12 +34,21 @@ class DataTransformer(object):
         self.np_ann = param.num_parts_in_annot
         self.num_parts = param.num_parts   
 
-    def transform(self,filename,anno_path,img_dir):
+    def transform(self,data): # data[0] = img_path, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
         aug = AugmentSelection(False,0.0,(),0)
-        coco = COCO(annotation_file=anno_path)
-        filename = filename.decode("utf-8")
-        img,meta,mask_miss,mask_all = self.create_data_info(coco,filename,img_dir)
-
+        # coco = COCO(annotation_file=anno_path)
+        # filename = filename.decode("utf-8")
+        # img,meta,mask_miss,mask_all = self.create_data_info(coco,filename,img_dir)
+        # *** might have to decode
+        print(data[0])
+        print(data[1])
+        print(data[2])
+        print(data[3])
+        
+        img = cv2.imread(data[0])
+        meta = data[1]
+        mask_miss = data[2]
+        mask_all = data[3]
         # Perform CLAHE
         #if(param.do_clahe):
             # *** Currently false all the time, look into later
@@ -53,8 +62,8 @@ class DataTransformer(object):
             # cv::cvtColor(img, img, CV_BGR2GRAY);
             # cv::cvtColor(img, img, CV_GRAY2BGR);
         
-        meta = self.format_meta_data(meta)
-
+        # meta = self.format_meta_data(meta)
+        meta = self.format_meta_data(data[1])
         if(self.param.transform_body_joint):
             self.TransformMetaJoints(meta)
         
@@ -418,165 +427,6 @@ class DataTransformer(object):
                        entryX[g_y*grid_x + g_x] = (entryX[g_y*grid_x + g_x]*cnt + bc[0]) / (cnt + 1)
                        entryY[g_y*grid_x + g_x] = (entryY[g_y*grid_x + g_x]*cnt + bc[1]) / (cnt + 1)
                        count[g_y][g_x] = cnt + 1
-    
-    def create_data_info(self,coco,filename,img_dir):
-        img_id = filename[:len(filename) - 4]
-        print("before*****")
-        ann_ids = coco.getAnnIds(imgIds=img_id)
-        img_anns = coco.loadAnns(ann_ids)
-        print("after*****")
-        numPeople = len(img_anns)
-        # image = coco.imgs[img_id]
-        print("imageeee")
-        img_path = os.path.join(img_dir, '%s.jpg' % img_id)
-        img = cv2.imread(img_path)
-        h, w = img.shape[0],img.shape[1]
-        
-        dataset_type = "COCO"
-
-        print("Image ID ", img_id)
-
-        persons = []
-        prev_center = []
-        joint_all = {}
-
-        for p in range(numPeople):
-
-            # skip this person if parts number is too low or if
-            # segmentation area is too small
-            if img_anns[p]["num_keypoints"] < 5 or img_anns[p]["area"] < 32 * 32:
-                continue
-
-            anno = img_anns[p]["keypoints"]
-
-            pers = {}
-
-            person_center = [img_anns[p]["bbox"][0] + img_anns[p]["bbox"][2] / 2,
-                                img_anns[p]["bbox"][1] + img_anns[p]["bbox"][3] / 2]
-
-            # skip this person if the distance to exiting person is too small
-            flag = 0
-            for pc in prev_center:
-                a = np.expand_dims(pc[:2], axis=0)
-                b = np.expand_dims(person_center, axis=0)
-                dist = cdist(a, b)[0]
-                if dist < pc[2]*0.3:
-                    flag = 1
-                    continue
-
-            if flag == 1:
-                continue
-
-            pers["objpos"] = person_center
-            pers["bbox"] = img_anns[p]["bbox"]
-            pers["segment_area"] = img_anns[p]["area"]
-            pers["num_keypoints"] = img_anns[p]["num_keypoints"]
-
-            pers["joint"] = np.zeros((17, 3))
-            for part in range(17):
-                pers["joint"][part, 0] = anno[part * 3]
-                pers["joint"][part, 1] = anno[part * 3 + 1]
-
-                if anno[part * 3 + 2] == 2:
-                    pers["joint"][part, 2] = 1
-                elif anno[part * 3 + 2] == 1:
-                    pers["joint"][part, 2] = 0
-                else:
-                    pers["joint"][part, 2] = 2
-
-            pers["scale_provided"] = img_anns[p]["bbox"][3] / 368
-
-            persons.append(pers)
-            prev_center.append(np.append(person_center, max(img_anns[p]["bbox"][2], img_anns[p]["bbox"][3])))
-
-
-        if len(persons) > 0:
-
-            joint_all["dataset"] = dataset_type
-
-            joint_all["img_width"] = w
-            joint_all["img_height"] = h
-            joint_all["image_id"] = img_id
-            joint_all["annolist_index"] = i
-
-            # set image path
-            joint_all["img_path"] = os.path.join(img_dir, '%s.jpg' % img_id)
-
-            # set the main person
-            joint_all["objpos"] = persons[0]["objpos"]
-            joint_all["bbox"] = persons[0]["bbox"]
-            joint_all["segment_area"] = persons[0]["segment_area"]
-            joint_all["num_keypoints"] = persons[0]["num_keypoints"]
-            joint_all["joint_self"] = persons[0]["joint"]
-            joint_all["scale_provided"] = persons[0]["scale_provided"]
-
-            # set other persons
-            joint_all["joint_others"] = []
-            joint_all["scale_provided_other"] = []
-            joint_all["objpos_other"] = []
-            joint_all["bbox_other"] = []
-            joint_all["segment_area_other"] = []
-            joint_all["num_keypoints_other"] = []
-
-            for ot in range(1, len(persons)):
-                joint_all["joint_others"].append(persons[ot]["joint"])
-                joint_all["scale_provided_other"].append(persons[ot]["scale_provided"])
-                joint_all["objpos_other"].append(persons[ot]["objpos"])
-                joint_all["bbox_other"].append(persons[ot]["bbox"])
-                joint_all["segment_area_other"].append(persons[ot]["segment_area"])
-                joint_all["num_keypoints_other"].append(persons[ot]["num_keypoints"])
-
-            joint_all["people_index"] = 0
-            lenOthers = len(persons) - 1
-
-            joint_all["numOtherPeople"] = lenOthers
-
-        mask_all,mask_miss = self.create_masks(img_anns,img.shape)
-
-        height = img.shape[0]
-        width = img.shape[1]
-
-        if (width < 64):
-            img = cv2.copyMakeBorder(img, 0, 0, 0, 64 - width, cv2.BORDER_CONSTANT,
-                                     value=(128, 128, 128))
-            print('saving padded image!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            cv2.imwrite('padded_img.jpg', img)
-            width = 64
-        
-        return img, joint_all, mask_miss[...,None], mask_all[...,None] if ("dataset" in joint_all) and ("COCO" in joint_all["dataset"]) else None
-
-    def create_masks(self,img_anns,img_shape):
-        h, w, c = img_shape
-
-        mask_all = np.zeros((h, w), dtype=np.uint8)
-        mask_miss = np.zeros((h, w), dtype=np.uint8)
-        flag = 0
-        for p in img_anns:
-            seg = p["segmentation"]
-
-            if p["iscrowd"] == 1:
-                mask_crowd = coco.annToMask(p)
-                temp = np.bitwise_and(mask_all, mask_crowd)
-                mask_crowd = mask_crowd - temp
-                flag += 1
-                continue
-            else:
-                mask = coco.annToMask(p)
-
-            mask_all = np.bitwise_or(mask, mask_all)
-
-            if p["num_keypoints"] <= 0:
-                mask_miss = np.bitwise_or(mask, mask_miss)
-
-        if flag<1:
-            mask_miss = np.logical_not(mask_miss)
-        elif flag == 1:
-            mask_miss = np.logical_not(np.bitwise_or(mask_miss, mask_crowd))
-            mask_all = np.bitwise_or(mask_all, mask_crowd)
-        else:
-            raise Exception("crowd segments > 1")
-
-        return mask_all * 255, mask_miss * 255
     
     def format_meta_data(self,meta):
 
