@@ -114,15 +114,13 @@ else:
                     img,joint_all,mask_miss,mask_all = create_data_info(coco,name,img_dir)
                     if((img is not None) or (joint_all is not None) or (mask_miss is not None) or (mask_all is not None)):
                         if("joint_self" in joint_all and (joint_all["joint_self"] is not None)):
-                            print("fuckkkkk")
-                            #print(type(joint_all["joint_self"]))
-                            for x in joint_all:
-                                print(type(joint_all[x]))
-                            joint_all["joint_self"] = joint_all["joint_self"].tolist()                            
-                            #print(type(joint_all["joint_self"]))
-                            for x in joint_all:
-                                print(type(joint_all[x]))
-                        data.append([img.tobytes(),json.dumps(joint_all),mask_miss.tobytes(),mask_all.tobytes() if mask_all is not None else None])
+                            joint_all["joint_self"] = joint_all["joint_self"].tolist()
+                            
+                        if("joint_others" in joint_all and (joint_all["joint_others"] is not None)):
+                            for i in range(len(joint_all["joint_others"])):
+                                (joint_all["joint_others"])[i] = (joint_all["joint_others"])[i].tolist()
+                        
+                        data.append([img.tobytes(),json.dumps(joint_all),mask_miss.tobytes(),mask_all.tobytes() if mask_all is not None else ""])
                         # write to file
                         h5_group = h5_file.create_group(name)
                         h5_group.create_dataset("data",data=img)
