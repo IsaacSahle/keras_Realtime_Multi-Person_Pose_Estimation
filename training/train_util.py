@@ -3,21 +3,25 @@ import cv2
 import copy
 import random
 from math import exp,sqrt
-from point_operations import Point,addPoints,addScalar,mulScalar,subtractPoint
 from pycocotools.coco import COCO
 import os
 import numpy as np
+from scipy.spatial.distance import cdist
+
 
 def create_data_info(coco,filename,img_dir):
-    img_id = filename[:len(filename) - 4]
+    img_name = filename.rstrip(".jpg")
+    img_id = (filename.rstrip(".jpg")).lstrip("0")    
     # print("before*****")
-    ann_ids = coco.getAnnIds(imgIds=img_id)
+    ann_ids = coco.getAnnIds(imgIds=int(img_id))
+    print(ann_ids)
     img_anns = coco.loadAnns(ann_ids)
+    print(img_anns)
     # print("after*****")
     numPeople = len(img_anns)
     # image = coco.imgs[img_id]
     # print("imageeee")
-    img_path = os.path.join(img_dir, '%s.jpg' % img_id)
+    img_path = os.path.join(img_dir, '%s.jpg' % img_name)
     print(img_path)
     img = cv2.imread(img_path)
     h, w = img.shape[0],img.shape[1]
@@ -25,7 +29,7 @@ def create_data_info(coco,filename,img_dir):
     dataset_type = "COCO"
 
     print("Image ID ", img_id)
-
+    print(numPeople)
     persons = []
     prev_center = []
     joint_all = {}
@@ -81,16 +85,16 @@ def create_data_info(coco,filename,img_dir):
 
 
     if len(persons) > 0:
-
+        print("adding joints")
         joint_all["dataset"] = dataset_type
 
         joint_all["img_width"] = w
         joint_all["img_height"] = h
-        joint_all["image_id"] = img_id
-        joint_all["annolist_index"] = i
+        joint_all["image_id"] = img_name
+        joint_all["annolist_index"] = 0 # never used, take out at some point 
 
         # set image path
-        joint_all["img_path"] = os.path.join(img_dir, '%s.jpg' % img_id)
+        joint_all["img_path"] = os.path.join(img_dir, '%s.jpg' % img_name)
 
         # set the main person
         joint_all["objpos"] = persons[0]["objpos"]
@@ -121,7 +125,7 @@ def create_data_info(coco,filename,img_dir):
 
         joint_all["numOtherPeople"] = lenOthers
         
-        mask_all,mask_miss = create_masks(img_anns,img.shape)
+        mask_all,mask_miss = create_masks(coco,img_anns,img.shape)
 
         height = img.shape[0]
         width = img.shape[1]
@@ -133,11 +137,12 @@ def create_data_info(coco,filename,img_dir):
             cv2.imwrite('padded_img.jpg', img)
             width = 64
     else:
+        print("no people")
         return None,None,None,None 
     
-    return img_path, joint_all, mask_miss[...,None], mask_all[...,None] if ("dataset" in joint_all) and ("COCO" in joint_all["dataset"]) else None
+    return img, joint_all, mask_miss[...,None], mask_all[...,None] if ("dataset" in joint_all) and ("COCO" in joint_all["dataset"]) else None
     
-def create_masks(img_anns,img_shape):
+def create_masks(coco,img_anns,img_shape):
     h, w, c = img_shape
 
     mask_all = np.zeros((h, w), dtype=np.uint8)

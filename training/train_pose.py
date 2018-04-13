@@ -17,6 +17,8 @@ import tensorflow as tf
 from train_util import create_data_info
 from pycocotools.coco import COCO
 import h5py
+import numpy as np
+import json
 
 batch_size = 10
 base_lr = 4e-5 # 2e-5
@@ -102,22 +104,31 @@ else:
             h5_file = h5py.File(h5_path, 'r')
             for key in h5_file.keys():
                 print("Key:",key)
-                data.append((h5_file[key]["path"],h5_file[key]["joint_all"],h5_file[key]["mask_miss"],h5_file[key]["mask_all"]))
+                data.append([h5_file[key]["data"],h5_file[key]["joint_all"],h5_file[key]["mask_miss"],h5_file[key]["mask_all"]])
         else:
             h5_file = h5py.File(h5_path, 'w')
             coco = COCO(ann_path)
             filenames = os.listdir(img_dir)
             for name in filenames:
                 if(not name.startswith('.')): # ignore hidden files
-                    img_path,joint_all,mask_miss,mask_all = create_data_info(coco,name,img_dir)
-                    if((img_path is not None) or (joint_all is not None) or (mask_miss is not None) or (mask_all is not None)):
-                        data.append((img_path,joint_all,mask_miss,mask_all))
+                    img,joint_all,mask_miss,mask_all = create_data_info(coco,name,img_dir)
+                    if((img is not None) or (joint_all is not None) or (mask_miss is not None) or (mask_all is not None)):
+                        if("joint_self" in joint_all and (joint_all["joint_self"] is not None)):
+                            print("fuckkkkk")
+                            #print(type(joint_all["joint_self"]))
+                            for x in joint_all:
+                                print(type(joint_all[x]))
+                            joint_all["joint_self"] = joint_all["joint_self"].tolist()                            
+                            #print(type(joint_all["joint_self"]))
+                            for x in joint_all:
+                                print(type(joint_all[x]))
+                        data.append([img.tobytes(),json.dumps(joint_all),mask_miss.tobytes(),mask_all.tobytes() if mask_all is not None else None])
                         # write to file
                         h5_group = h5_file.create_group(name)
-                        h5_group.creat_dataset("path",data=img_path)
-                        h5_group.creat_dataset("joint_all",data=joint_all)
-                        h5_group.creat_dataset("mask_miss",data=mask_miss) 
-                        h5_group.creat_dataset("mask_all",data=mask_all)
+                        h5_group.create_dataset("data",data=img)
+                        h5_group.create_dataset("joint_all",data=json.dumps(joint_all))
+                        h5_group.create_dataset("mask_miss",data=mask_miss) 
+                        h5_group.create_dataset("mask_all",data=mask_all)
         h5_file.close()
         return data
         
@@ -133,8 +144,8 @@ else:
         val_img_dir = os.path.join(dataset_dir, "val2017")
         # Retrieve file names and create tf constants
         tr_data_list = filter_for_people(tr_hdf5_path,tr_img_dir,tr_anno_path)
+        print(type(tr_data_list),"*************")
         # val_data_list = filter_for_people(val_hdf5_path,val_img_dir,val_anno_path)
-
         with tf.Session() as sess:        
             # Create dataset
             if train:
