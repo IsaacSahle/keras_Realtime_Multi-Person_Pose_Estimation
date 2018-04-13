@@ -82,7 +82,8 @@ def _parse_tr_data(data=None): # data[0] = img_path, data[1] = joint_all, data[2
     # *** data_img -> (3,368,368) ***
     # *** mask_img -> (46,46) ***
     # *** label -> (57,46,46) ***
-    data_img, mask_img, label = preprocess(True, filename)
+    print("data")
+    data_img, mask_img, label = preprocess(True, data)
 
     print(data_img.shape)
     print(mask_img.shape)

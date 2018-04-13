@@ -120,7 +120,7 @@ else:
                             for i in range(len(joint_all["joint_others"])):
                                 (joint_all["joint_others"])[i] = (joint_all["joint_others"])[i].tolist()
                         
-                        data.append([img.tobytes(),json.dumps(joint_all),mask_miss.tobytes(),mask_all.tobytes() if mask_all is not None else ""])
+                        data.append([np.array2string(img,separator=','),json.dumps(joint_all),np.array2string(mask_miss,separator=','),np.array2string(mask_all,separator=',') if mask_all is not None else ""])
                         # write to file
                         h5_group = h5_file.create_group(name)
                         h5_group.create_dataset("data",data=img)
