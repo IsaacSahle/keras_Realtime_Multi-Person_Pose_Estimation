@@ -71,13 +71,14 @@ def preprocess(train=None,data=None):
     #     anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
     #     img_dir = os.path.join(dataset_dir, "val2017")
 
-    print("Transforming ... " , data[0])
+    # print("Transforming ... " , data[0])
     # Transformation
+    print("Transforming...")
     data_img,mask_img,label = dataTransformer.transform(data)
 
     return data_img, mask_img,label
 
-def _parse_tr_data(data=None): # data[0] = img_path, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
+def _parse_tr_data(data=None): # data[0] = img, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
     # *** After data is parsed from server ... if we get these shapes correct, we're golden!
     # *** data_img -> (3,368,368) ***
     # *** mask_img -> (46,46) ***

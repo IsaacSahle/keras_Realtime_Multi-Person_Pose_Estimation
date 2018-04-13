@@ -44,11 +44,11 @@ class DataTransformer(object):
         print(data[1])
         print(data[2])
         print(data[3])
-        
-        img = cv2.imread(data[0])
+
+        img = data[0] # TODO(Mike): convert img string back to np array
         meta = data[1]
-        mask_miss = data[2]
-        mask_all = data[3]
+        mask_miss = data[2] # TODO(Mike): convert string back to np array
+        mask_all = data[3] # TODO(Mike): convert string back to np array
         # Perform CLAHE
         #if(param.do_clahe):
             # *** Currently false all the time, look into later
@@ -429,7 +429,7 @@ class DataTransformer(object):
                        count[g_y][g_x] = cnt + 1
     
     def format_meta_data(self,meta):
-
+        # TODO( Mike): joint_self and joint_others back to np arrays ... maybe a call to np.array() or np.asarray()
         for i in range(self.np_ann):
             joint = meta["joint_self"]
             if(joint[i,2] == 2):
