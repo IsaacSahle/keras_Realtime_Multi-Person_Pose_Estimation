@@ -35,13 +35,13 @@ class DataTransformer(object):
         self.np_ann = param.num_parts_in_annot
         self.num_parts = param.num_parts  
 
-    def transform(self,data): # data[0] = , data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
+    def transform(self,data): # data[0] = img, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
         aug = AugmentSelection(False,0.0,(),0)
         # coco = COCO(annotation_file=anno_path)
         # filename = filename.decode("utf-8")
         # img,meta,mask_miss,mask_all = self.create_data_info(coco,filename,img_dir)
         # *** might have to decode
-
+        
         #convert strings back to np arrays
         img = np.fromstring(data[0], dtype= np.uint8) 
         mask_miss = np.fromstring(data[2], dtype= np.uint8) 
@@ -50,6 +50,7 @@ class DataTransformer(object):
         # meta = self.format_meta_data(meta)
         meta = self.format_meta_data(data[1])
         print("\nSTART\n")
+
         if(self.param.transform_body_joint):
             self.TransformMetaJoints(meta)
         print("\nEND\n")
@@ -419,7 +420,8 @@ class DataTransformer(object):
         # joint_self and joint_others back to np arrays
         meta = json.loads(meta)
         meta["joint_self"] = np.asarray(meta["joint_self"])
-        meta["joint_others"] = np.asarray(meta["joint_others"])
+        meta["joint_others"] = np.asarray(meta["joint_others"]
+                                          
         for i in range(self.np_ann):
             joint = meta["joint_self"]
             if(joint[i,2] == 2):

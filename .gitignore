@@ -2,6 +2,7 @@ model/**/*.caffemodel
 model/**/*.h5
 model/**/*.npy
 dataset/train2017
+dataset/train2017-Large
 dataset/val2017
 dataset/test2017
 dataset/trainmask2017

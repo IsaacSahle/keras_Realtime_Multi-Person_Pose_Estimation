@@ -88,6 +88,7 @@ def _parse_tr_data(data=None): # data[0] = img, data[1] = joint_all, data[2] = m
     data[1] = data[1].decode("utf-8")
     data[2] = data[2].decode("utf-8")
     data[3] = data[3].decode("utf-8")
+
     data_img, mask_img, label = preprocess(True, data)
 
     print(data_img.shape)
