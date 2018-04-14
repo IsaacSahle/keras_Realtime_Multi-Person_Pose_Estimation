@@ -84,6 +84,11 @@ def _parse_tr_data(data=None): # data[0] = img, data[1] = joint_all, data[2] = m
     # *** mask_img -> (46,46) ***
     # *** label -> (57,46,46) ***
     print("data")
+    data[0] = data[0].decode("utf-8")
+    data[1] = data[1].decode("utf-8")
+    data[2] = data[2].decode("utf-8")
+    data[3] = data[3].decode("utf-8")
+
     data_img, mask_img, label = preprocess(True, data)
 
     print(data_img.shape)
@@ -131,4 +136,6 @@ def _parse_tr_data(data=None): # data[0] = img, data[1] = joint_all, data[2] = m
 
 def _parse_va_data(filename=None):
     print("You thought this function did something huh?")
-    
+   
+
+#_parse_tr_data(data="000000000009.jpg") 
