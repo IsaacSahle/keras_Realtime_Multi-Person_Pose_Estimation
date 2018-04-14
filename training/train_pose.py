@@ -104,7 +104,8 @@ else:
             h5_file = h5py.File(h5_path, 'r')
             for key in h5_file.keys():
                 print("Key:",key)
-                data.append([h5_file[key]["data"],h5_file[key]["joint_all"],h5_file[key]["mask_miss"],h5_file[key]["mask_all"]])
+                print("Type: ",type(h5_file["/" + key + "/data"]))
+                data.append([h5_file["/" + key + "/data"][()],h5_file["/" + key + "/joint_all"][()],h5_file["/" + key + "/mask_miss"][()],h5_file["/" + key + "/mask_all"][()]])
         else:
             h5_file = h5py.File(h5_path, 'w')
             coco = COCO(ann_path)
@@ -123,10 +124,10 @@ else:
                         data.append([np.array2string(img,separator=','),json.dumps(joint_all),np.array2string(mask_miss,separator=','),np.array2string(mask_all,separator=',') if mask_all is not None else ""])
                         # write to file
                         h5_group = h5_file.create_group(name)
-                        h5_group.create_dataset("data",data=img)
+                        h5_group.create_dataset("data",data=np.array2string(img,separator=','))
                         h5_group.create_dataset("joint_all",data=json.dumps(joint_all))
-                        h5_group.create_dataset("mask_miss",data=mask_miss) 
-                        h5_group.create_dataset("mask_all",data=mask_all)
+                        h5_group.create_dataset("mask_miss",data=np.array2string(mask_miss,separator=',')) 
+                        h5_group.create_dataset("mask_all",data=np.array2string(mask_all,separator=',') if mask_all is not None else "")
         h5_file.close()
         return data
         

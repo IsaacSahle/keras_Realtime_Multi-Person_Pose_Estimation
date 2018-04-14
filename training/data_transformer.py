@@ -34,7 +34,7 @@ class DataTransformer(object):
         self.np_ann = param.num_parts_in_annot
         self.num_parts = param.num_parts   
 
-    def transform(self,data): # data[0] = img_path, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
+    def transform(self,data): # data[0] = img, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
         aug = AugmentSelection(False,0.0,(),0)
         # coco = COCO(annotation_file=anno_path)
         # filename = filename.decode("utf-8")
@@ -49,18 +49,6 @@ class DataTransformer(object):
         meta = data[1]
         mask_miss = data[2] # TODO(Mike): convert string back to np array
         mask_all = data[3] # TODO(Mike): convert string back to np array
-        # Perform CLAHE
-        #if(param.do_clahe):
-            # *** Currently false all the time, look into later
-            # Code snippet
-            # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            # cl1 = clahe.apply(img)
-        
-        # Convert to grayscale
-        #if(param.gray == 1):
-            # Not sure why this is done in C++ server
-            # cv::cvtColor(img, img, CV_BGR2GRAY);
-            # cv::cvtColor(img, img, CV_GRAY2BGR);
         
         # meta = self.format_meta_data(meta)
         meta = self.format_meta_data(data[1])
