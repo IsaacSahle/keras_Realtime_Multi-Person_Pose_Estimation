@@ -14,6 +14,11 @@ from keras.layers.convolutional import Conv2D
 from keras.applications.vgg19 import VGG19
 import keras.backend as K
 import tensorflow as tf
+from train_util import create_data_info
+from pycocotools.coco import COCO
+import h5py
+import numpy as np
+import json
 
 batch_size = 10
 base_lr = 4e-5 # 2e-5
@@ -92,24 +97,59 @@ elif False:
                       vec_num=38, heat_num=19, batch_size=batch_size, shuffle=True)
     val_samples=val_di.N
 else:
+    def filter_for_people(h5_path,img_dir, ann_path):
+        data = []
+        # Check if h5 data available
+        if(os.path.isfile(h5_path)): 
+            h5_file = h5py.File(h5_path, 'r')
+            for key in h5_file.keys():
+                print("Key:",key)
+                data.append([h5_file[key]["data"],h5_file[key]["joint_all"],h5_file[key]["mask_miss"],h5_file[key]["mask_all"]])
+        else:
+            h5_file = h5py.File(h5_path, 'w')
+            coco = COCO(ann_path)
+            filenames = os.listdir(img_dir)
+            for name in filenames:
+                if(not name.startswith('.')): # ignore hidden files
+                    img,joint_all,mask_miss,mask_all = create_data_info(coco,name,img_dir)
+                    if((img is not None) or (joint_all is not None) or (mask_miss is not None) or (mask_all is not None)):
+                        if("joint_self" in joint_all and (joint_all["joint_self"] is not None)):
+                            joint_all["joint_self"] = joint_all["joint_self"].tolist()
+                            
+                        if("joint_others" in joint_all and (joint_all["joint_others"] is not None)):
+                            for i in range(len(joint_all["joint_others"])):
+                                (joint_all["joint_others"])[i] = (joint_all["joint_others"])[i].tolist()
+                        
+                        data.append([np.array2string(img,separator=','),json.dumps(joint_all),np.array2string(mask_miss,separator=','),np.array2string(mask_all,separator=',') if mask_all is not None else ""])
+                        # write to file
+                        h5_group = h5_file.create_group(name)
+                        h5_group.create_dataset("data",data=img)
+                        h5_group.create_dataset("joint_all",data=json.dumps(joint_all))
+                        h5_group.create_dataset("mask_miss",data=mask_miss) 
+                        h5_group.create_dataset("mask_all",data=mask_all)
+        h5_file.close()
+        return data
+        
     def create_data_generator(train=None):
         # TF dataset API
         # Retrieve paths to data
         dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
+        tr_hdf5_path = os.path.join(dataset_dir, "train_dataset.h5")
+        val_hdf5_path = os.path.join(dataset_dir, "val_dataset.h5")
         tr_anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
         tr_img_dir = os.path.join(dataset_dir, "train2017")
         val_anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
         val_img_dir = os.path.join(dataset_dir, "val2017")
         # Retrieve file names and create tf constants
-        tr_file_names = os.listdir(tr_img_dir)
-        val_file_names = os.listdir(val_img_dir)
-
+        tr_data_list = filter_for_people(tr_hdf5_path,tr_img_dir,tr_anno_path)
+        print(type(tr_data_list),"*************")
+        # val_data_list = filter_for_people(val_hdf5_path,val_img_dir,val_anno_path)
         with tf.Session() as sess:        
             # Create dataset
             if train:
-                dataset = tf.data.Dataset.from_tensor_slices(tr_file_names)
+                dataset = tf.data.Dataset.from_tensor_slices(tr_data_list)
             else:
-                dataset = tf.data.Dataset.from_tensor_slices(val_file_names)
+                dataset = tf.data.Dataset.from_tensor_slices(val_data_list)
             
             # Map dataset *** break big function into multiple map functions
             if train:
@@ -128,7 +168,7 @@ else:
 
     train_di = create_data_generator(train=True)
     train_samples = 20584
-    val_di = create_data_generator(train=False)
+    # val_di = create_data_generator(train=False)
 
 # setup lr multipliers for conv layers
 lr_mult=dict()
