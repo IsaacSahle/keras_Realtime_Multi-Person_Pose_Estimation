@@ -14,9 +14,9 @@ def create_data_info(coco,filename,img_dir):
     img_id = (filename.rstrip(".jpg")).lstrip("0")    
     # print("before*****")
     ann_ids = coco.getAnnIds(imgIds=int(img_id))
-    print(ann_ids)
+    # print(ann_ids)
     img_anns = coco.loadAnns(ann_ids)
-    print(img_anns)
+    # print(img_anns)
     # print("after*****")
     numPeople = len(img_anns)
     # image = coco.imgs[img_id]

@@ -31,9 +31,9 @@ class DataTransformer(object):
     is_table_set_ = False
 
     def __init__(self,transforParam):
-        param = transforParam
-        self.np_ann = param.num_parts_in_annot
-        self.num_parts = param.num_parts  
+        self.param = transforParam
+        self.np_ann = self.param.num_parts_in_annot
+        self.num_parts = self.param.num_parts  
 
     def transform(self,data): # data[0] = img, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
         aug = AugmentSelection(False,0.0,(),0)
@@ -43,20 +43,27 @@ class DataTransformer(object):
         # *** might have to decode
         
         #convert strings back to np arrays
-        img = np.fromstring(data[0], dtype= np.uint8) 
-        mask_miss = np.fromstring(data[2], dtype= np.uint8) 
-        mask_all = np.fromstring(data[3], dtype= np.uint8) 
+        img = np.fromstring(data[0],dtype=np.uint8) # not working properly, giving us incorrect array
+        mask_miss = np.fromstring(data[2], dtype=np.uint8) 
+        mask_all = np.fromstring(data[3], dtype=np.uint8) 
         
         # meta = self.format_meta_data(meta)
         meta = self.format_meta_data(data[1])
+        #print(img)
+        #print(meta)
+        #print(mask_all)
+        #print(mask_miss)
+        
         print("\nSTART\n")
 
         if(self.param.transform_body_joint):
-            self.TransformMetaJoints(meta)
-        print("\nEND\n")
+            meta = self.TransformMetaJoints(meta)
         
         # Start transformation
-        img_aug = np.zeros(param.crop_size_y,param.crop_size_x,3)
+        print("\nEND\n")
+        img_aug = np.zeros((self.param.crop_size_y,self.param.crop_size_x,3))
+        print("\nEND\n")
+        
         mask_miss_aug = None
 
         aug.scale,img_temp,mask_miss = self.AugmentationScale(img,mask_miss,meta)
@@ -64,17 +71,17 @@ class DataTransformer(object):
         aug.crop,img_temp3,mask_miss_aug = self.AugmentationCropped(img_temp2,mask_miss,meta)
         aug.flip,img_aug,mask_miss_aug = self.AugmentationFlip(img_temp3,mask_miss_aug,meta)
 
-        mask_miss_aug = cv2.resize(mask_miss_aug,(0,0),fx=1.0/param.stride,fy=1.0/param.stride,interpolation=cv2.INTER_CUBIC)
+        mask_miss_aug = cv2.resize(mask_miss_aug,(0,0),fx=1.0/self.param.stride,fy=1.0/self.param.stride,interpolation=cv2.INTER_CUBIC)
 
         offset = img_aug.shape[0] * img_aug.shape[1]
         rezX = img_aug.shape[1]
         rezY = img_aug.shape[0]
-        grid_x = rezX / param.stride
-        grid_y = rezY / param.stride
+        grid_x = rezX / self.param.stride
+        grid_y = rezY / self.param.stride
         channel_offset = grid_y * grid_x
 
         # label size is image size/ stride
-        transformed_label = [0.0]*((params.crop_size_x / param.stride) * (params.crop_size_y / param.stride) * self.num_parts)
+        transformed_label = [0.0]*((self.param.crop_size_x / self.param.stride) * (self.param.crop_size_y / self.param.stride) * self.num_parts)
         for g_y in range(grid_y):
             for g_x in range(grid_x):
                 for i in range(self.num_parts+1):
@@ -92,10 +99,12 @@ class DataTransformer(object):
         return data_img, mask, label 
     
     def TransformMetaJoints(self,meta=None):
-        self.TransformJoints(meta["joint_self"]) # joint_self,joint_others => (17,3)
+        meta["joint_self"] = self.TransformJoints(meta["joint_self"]) # joint_self,joint_others => (17,3)
+        assert meta["joint_self"].shape == (56,3)
         for j in meta["joint_others"]:
-            self.TransformJoints(j)
-
+            j = self.TransformJoints(j)
+            assert j.shape == (56,3)
+        return meta
     def TransformJoints(self,j=None):
         # Coco dataset
         jo = np.copy(j)
@@ -104,8 +113,7 @@ class DataTransformer(object):
             from_body_part = [1,6,7,9,11,6,8,10,13,15,17,12,14,16,3,2,5,4]
             to_body_part = [1,7,7,9,11,6,8,10,13,15,17,12,14,16,3,2,5,4]
             
-            jo = jo.resize((56,3))
-            
+            jo.resize((56,3))
             for i in range(18):
                 jo[i,0] = j[from_body_part[i]-1,0] + j[to_body_part[i]-1,0] * 0.5 
                 jo[i,1] = j[from_body_part[i]-1,1] + j[to_body_part[i]-1,1] * 0.5
@@ -115,24 +123,31 @@ class DataTransformer(object):
                     jo[i,2] = 3
                 else:
                     jo[i,2] = 1 if(j[from_body_part[i]-1,2] != 0 and j[to_body_part[i]-1,2] != 0) else 0
-        j = np.copy(jo)
+        return jo
 
     def AugmentationScale(self,img_src,mask_miss,meta):
+        print("hi")
         dice = random.random()
-        if(dice > param.scale_prob):
+        print("hi")
+        if(dice > self.param.scale_prob):
+            print("hi")
             img_temp = np.copy(img_src) # *** will probably break check when testing ***
             scale_multiplier = 1
         else:
+            print("hi")
             dice2 = random.random()
-            scale_multiplier = (param.scale_max - param.scale_min) * dice2 + param.scale_min
-        
-        scale_abs = param.target_dist/meta["scale_self"]
+            scale_multiplier = (self.param.scale_max - self.param.scale_min) * dice2 + self.param.scale_min
+        scale_abs = self.param.target_dist/meta["scale_provided"]
         scale = scale_abs * scale_multiplier
-        
-        img_temp = cv2.resize(img_src,(0,0),fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC)
-        mask_miss = cv2.resize(mask_miss,(0,0),fx=scale,fy=scale,interpolation=cv.INTER_CUBIC)
-        meta["objpos"] = [i * scale for i in meta["objpos"]]
+        print(img_src.shape)
+        print(meta["img_height"])
+        print(meta["img_width"])
+        img_temp = cv2.resize(img_src,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC)
+        print("hi")
+        mask_miss = cv2.resize(mask_miss,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC)
+        print("hi")
 
+        meta["objpos"] = [i * scale for i in meta["objpos"]]
         for i in range(self.num_parts):
             (meta["joint_self"])[i,0] *= scale
             (meta["joint_self"])[i,1] *= scale
@@ -145,11 +160,11 @@ class DataTransformer(object):
         return scale_multiplier,img_temp,mask_miss
     
     def AugmentationRotate(self,img_src,mask_miss, meta):
-        if(param.aug_way == "rand"):
+        if(self.param.aug_way == "rand"):
             dice = random.random()
-            degree = (dice - 0.5) * 2 * param.max_rotate_degree
-        elif(param.aug_way == "table"):
-            degree = aug_degs_[meta["write_number"]][meta["epoch"] % param.num_total_augs] # assuming augmentation table set in ReadMetaData
+            degree = (dice - 0.5) * 2 * self.param.max_rotate_degree
+        elif(self.param.aug_way == "table"):
+            degree = aug_degs_[meta["write_number"]][meta["epoch"] % self.param.num_total_augs] # assuming augmentation table set in ReadMetaData
         else:
             degree = 0
         
@@ -171,21 +186,21 @@ class DataTransformer(object):
         dice_x = random.random()
         dice_y = random.random()
         
-        x_offset = (dice_x - 0.5) * 2 * param.center_perterb_max
-        y_offset = (dice_y - 0.5) * 2 * param.center_perterb_max
+        x_offset = (dice_x - 0.5) * 2 * self.param.center_perterb_max
+        y_offset = (dice_y - 0.5) * 2 * self.param.center_perterb_max
         
         center = [meta["objpos"][0] + x_offset,meta["objpos"][1] + y_offset]
     
-        offset_left = -(center[0] - (param.crop_size_x/2))
-        offset_up = -(center[1] - (param.crop_size_y/2))
+        offset_left = -(center[0] - (self.param.crop_size_x/2))
+        offset_up = -(center[1] - (self.param.crop_size_y/2))
 
-        img_dst = np.zeros((param.crop_size_y, param.crop_size_x, 3)) + (128,128,128)
-        mask_miss_aug = np.zeros((param.crop_size_y, param.crop_size_x)) + (255)
+        img_dst = np.zeros((self.param.crop_size_y, self.param.crop_size_x, 3)) + (128,128,128)
+        mask_miss_aug = np.zeros((param.crop_size_y, self.param.crop_size_x)) + (255)
         
-        for i in range(param.crop_size_y):
-            for j in range(param.crop_size_x):
-                coord_x_on_img = center[0] - param.crop_size_x/2 + j
-                coord_y_on_img = center[1] - param.crop_size_y/2 + i
+        for i in range(self.param.crop_size_y):
+            for j in range(self.param.crop_size_x):
+                coord_x_on_img = center[0] - self.param.crop_size_x/2 + j
+                coord_y_on_img = center[1] - self.param.crop_size_y/2 + i
                 if(self.OnPlane(coord_x_on_img,coord_y_on_img,img_src.shape)):
                     img_dst[i][j] = img_src[coord_y_on_img][coord_x_on_img]
                     mask_miss_aug[i][j] = mask_miss[coord_y_on_img][coord_x_on_img]
@@ -208,11 +223,11 @@ class DataTransformer(object):
         return [x_offset,y_offset],img_dst,mask_miss_aug
 
     def AugmentationFlip(self,img_src,mask_miss_aug,meta):
-        if(param.aug_way == "rand"):
+        if(self.param.aug_way == "rand"):
             dice = random.random()
-            doflip = (dice <= param.flip_prob)
-        elif(param.aug_way == "table"):
-            doflip = aug_flips_[meta.write_number][meta.epoch % param.num_total_augs] == 1
+            doflip = (dice <= self.param.flip_prob)
+        elif(self.param.aug_way == "table"):
+            doflip = aug_flips_[meta.write_number][meta.epoch % self.param.num_total_augs] == 1
         else:
             doflip = False
         
@@ -226,7 +241,7 @@ class DataTransformer(object):
                if(meta.joint_self.joints[i] is not None):
                    (meta.joint_self.joints[i]).x = w - 1 - (meta.joint_self.joints[i]).x
             
-           if(param.transform_body_joint):
+           if(self.param.transform_body_joint):
                self.SwapLeftRight(meta.joint_self)
         
            for p in range(meta.num_other_people):
@@ -236,7 +251,7 @@ class DataTransformer(object):
                    if(meta.joint_others[p].joints[i] is  not None):
                        meta.joint_others[p].joints[i].x = w - 1 - meta.joint_others[p].joints[i].x
                 
-               if(param.transform_body_joint):
+               if(self.param.transform_body_joint):
                    self.SwapLeftRight(meta.joint_others[p])
         else:
             img_aug = np.copy(img_src)
@@ -244,11 +259,11 @@ class DataTransformer(object):
         return doflip,img_aug,mask_miss_aug
     
     def AugmentationFlip(self,img_src,mask_miss_aug,meta):
-        if(param.aug_way == "rand"):
+        if(self.param.aug_way == "rand"):
             dice = random.random()
-            doflip = (dice <= param.flip_prob)
-        elif(param.aug_way == "table"):
-            doflip = aug_flips_[meta["write_number"]][meta["epoch"] % param.num_total_augs] == 1
+            doflip = (dice <= self.param.flip_prob)
+        elif(self.param.aug_way == "table"):
+            doflip = aug_flips_[meta["write_number"]][meta["epoch"] % self.param.num_total_augs] == 1
         else:
             doflip = False
         
@@ -261,7 +276,7 @@ class DataTransformer(object):
            for i in range(self.num_parts):
                 meta["joint_self"][i,0] = w - 1 - meta["joint_self"][i,0]
             
-           if(param.transform_body_joint):
+           if(self.param.transform_body_joint):
                self.SwapLeftRight(meta["joint_self"])
         
            for p in range(meta["num_other_people"]):
@@ -270,7 +285,7 @@ class DataTransformer(object):
                for i in range(self.num_parts):
                    meta["joint_others"][p][i,0] = w - 1 - meta["joint_others"][p][i,0]
                 
-               if(param.transform_body_joint):
+               if(self.param.transform_body_joint):
                    self.SwapLeftRight(meta["joint_others"][p])
         else:
             img_aug = np.copy(img_src)
@@ -310,7 +325,7 @@ class DataTransformer(object):
 
         rezX = img_aug.shape[1]
         rezY = img_aug.shape[0]
-        stride = param.stride
+        stride = self.param.stride
         grid_x = rezX / stride
         grid_y = rezY / stride
         channelOffset = grid_y * grid_x
@@ -326,7 +341,7 @@ class DataTransformer(object):
                 center = meta["joint_self"][i]
                 if(meta["joint_self"][i][2] <= 1):
                     self.PutGaussianMaps(transformed_label + (i+self.num_parts+39)*channelOffset, center, stride,
-                grid_x, grid_y, param.sigma)
+                grid_x, grid_y, self.param.sigma)
                 
                 for j in range(meta["num_other_people"]):
                     center = meta["joint_others"][j][i] 
@@ -334,7 +349,7 @@ class DataTransformer(object):
                     #center = meta.joint_others[j].joints[i]
                     #if(meta.joint_others[j].is_visible[i] <= 1):
                         self.PutGaussianMaps(transformed_label + (i+self.num_parts+39)*channelOffset, center, stride,
-                                        grid_x, grid_y, param.sigma)
+                                        grid_x, grid_y, self.param.sigma)
 
         # Creating PAF
         mid_1 = [2, 9,  10, 2,  12, 13, 2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16]
@@ -347,13 +362,13 @@ class DataTransformer(object):
             jo = meta["joint_self"]
             if(jo[mid_1[i]-1][2] <= 1 and jo[mid_2[i]-1][2] <= 1):
                 self.PutVecMaps(transformed_label + (self.num_parts+ 1+ 2*i)*channelOffset, transformed_label + (self.num_parts+ 2+ 2*i)*channelOffset,
-            count, jo[mid_1[i]-1], jo[mid_2[i]-1], stride, grid_x, grid_y, param.sigma, thre)
+            count, jo[mid_1[i]-1], jo[mid_2[i]-1], stride, grid_x, grid_y, self.param.sigma, thre)
 
             for j in range(meta["num_other_people"]):
                 jo2 = meta["joint_others"][j]
                 if(jo2[mid_1[i]-1][2] <= 1 and jo2[mid_2[i]-1][2] <= 1):
                     self.PutVecMaps(transformed_label + (self.num_parts+ 1+ 2*i)*channelOffset, transformed_label + (self.num_parts+ 2+ 2*i)*channelOffset,
-                count, jo2[mid_1[i]-1], jo2[mid_2[i]-1], stride, grid_x, grid_y, param.sigma, thre)   
+                count, jo2[mid_1[i]-1], jo2[mid_2[i]-1], stride, grid_x, grid_y, self.param.sigma, thre)   
 
         # Put background channel **** no idea what this is doing **** 
         for g_y in range(grid_y):
@@ -419,8 +434,8 @@ class DataTransformer(object):
     def format_meta_data(self,meta):
         # joint_self and joint_others back to np arrays
         meta = json.loads(meta)
-        meta["joint_self"] = np.asarray(meta["joint_self"])
-        meta["joint_others"] = np.asarray(meta["joint_others"]
+        meta["joint_self"] = np.array(meta["joint_self"])
+        meta["joint_others"] = np.array(meta["joint_others"])
                                           
         for i in range(self.np_ann):
             joint = meta["joint_self"]
@@ -439,6 +454,7 @@ class DataTransformer(object):
                 else:
                     joint[j,2] = 0 if joint[j,2] == 0 else 1
                     if(joint[j,0] < 0 or joint[j,1] < 0 or joint[j,0] >= meta["img_width"] or joint[j,1] >= meta["img_height"]):
-                        joint[j,2] = 2 
+                        joint[j,2] = 2
+        return meta 
     
 
