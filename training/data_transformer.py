@@ -33,31 +33,7 @@ class DataTransformer(object):
     def __init__(self,transforParam):
         param = transforParam
         self.np_ann = param.num_parts_in_annot
-        self.num_parts = param.num_parts
-
-    def format_meta_data(self,meta):
-        # joint_self and joint_others back to np arrays
-        meta = json.loads(meta)
-        meta["joint_self"] = np.asarray(meta["joint_self"])
-        meta["joint_others"] = np.asarray(meta["joint_others"])
-        for i in range(self.np_ann):
-            joint = meta["joint_self"]
-            if(joint[i,2] == 2):
-                joint[i,2] = 3
-            else:
-                joint[i,2] = 0 if joint[i,2] == 0 else 1
-                if(joint[i,0] < 0 or joint[i,1] < 0 or joint[i,0] >= meta["img_width"] or joint[i,1] >= meta["img_height"]):
-                    joint[i,2] = 2
-        
-        for i in range(meta["numOtherPeople"]):
-            for j in range(self.np_ann):
-                joint = (meta["joint_others"])[i]
-                if(joint[j,2] == 2):
-                    joint[j,2] = 3
-                else:
-                    joint[j,2] = 0 if joint[j,2] == 0 else 1
-                    if(joint[j,0] < 0 or joint[j,1] < 0 or joint[j,0] >= meta["img_width"] or joint[j,1] >= meta["img_height"]):
-                        joint[j,2] = 2   
+        self.num_parts = param.num_parts  
 
     def transform(self,data): # data[0] = , data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
         aug = AugmentSelection(False,0.0,(),0)
@@ -438,5 +414,29 @@ class DataTransformer(object):
                        entryX[g_y*grid_x + g_x] = (entryX[g_y*grid_x + g_x]*cnt + bc[0]) / (cnt + 1)
                        entryY[g_y*grid_x + g_x] = (entryY[g_y*grid_x + g_x]*cnt + bc[1]) / (cnt + 1)
                        count[g_y][g_x] = cnt + 1
+
+    def format_meta_data(self,meta):
+        # joint_self and joint_others back to np arrays
+        meta = json.loads(meta)
+        meta["joint_self"] = np.asarray(meta["joint_self"])
+        meta["joint_others"] = np.asarray(meta["joint_others"])
+        for i in range(self.np_ann):
+            joint = meta["joint_self"]
+            if(joint[i,2] == 2):
+                joint[i,2] = 3
+            else:
+                joint[i,2] = 0 if joint[i,2] == 0 else 1
+                if(joint[i,0] < 0 or joint[i,1] < 0 or joint[i,0] >= meta["img_width"] or joint[i,1] >= meta["img_height"]):
+                    joint[i,2] = 2
+        
+        for i in range(meta["numOtherPeople"]):
+            for j in range(self.np_ann):
+                joint = (meta["joint_others"])[i]
+                if(joint[j,2] == 2):
+                    joint[j,2] = 3
+                else:
+                    joint[j,2] = 0 if joint[j,2] == 0 else 1
+                    if(joint[j,0] < 0 or joint[j,1] < 0 or joint[j,0] >= meta["img_width"] or joint[j,1] >= meta["img_height"]):
+                        joint[j,2] = 2 
     
 
