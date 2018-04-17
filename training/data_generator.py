@@ -28,9 +28,6 @@ class TransformationParameter(object):
     gray = 0
     transform_body_joint = True
 
-    #def __init__(self):
-        # Nothing yet
-
 def preprocess(train=None,data=None):
     params = TransformationParameter()
     params.stride = 8
@@ -48,7 +45,6 @@ def preprocess(train=None,data=None):
     params.mirror = True
 
     dataTransformer = DataTransformer(params)
-    # dataTransformer.initRand()
     np = 2*(params.num_parts+1)
     stride = params.stride
     grid_x = params.crop_size_x / stride
@@ -62,16 +58,6 @@ def preprocess(train=None,data=None):
     transformed_data = [] # size: params.crop_size_x * params.crop_size_y * 3
     transformed_label = [] # size: grid_x * grid_y * np
 
-    # Dataset 
-    # dataset_dir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'dataset'))
-    # if train:
-    #     anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_train2017.json")
-    #     img_dir = os.path.join(dataset_dir, "train2017")
-    # else:
-    #     anno_path = os.path.join(dataset_dir, "annotations/person_keypoints_val2017.json")
-    #     img_dir = os.path.join(dataset_dir, "val2017")
-
-    # print("Transforming ... " , data[0])
     # Transformation
     print("Transforming...")
     data_img,mask_img,label = dataTransformer.transform(data)
@@ -79,21 +65,15 @@ def preprocess(train=None,data=None):
     return data_img, mask_img,label
 
 def _parse_tr_data(data=None): # data[0] = img, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
-    # *** After data is parsed from server ... if we get these shapes correct, we're golden!
     # *** data_img -> (3,368,368) ***
     # *** mask_img -> (46,46) ***
     # *** label -> (57,46,46) ***
-    print("data")
     data[0] = data[0].decode("utf-8")
     data[1] = data[1].decode("utf-8")
     data[2] = data[2].decode("utf-8")
     data[3] = data[3].decode("utf-8")
-
+    
     data_img, mask_img, label = preprocess(True, data)
-
-    print(data_img.shape)
-    print(mask_img.shape)
-    print(label.shape)
 
     # image
     data_img = np.transpose(data_img, (1, 2, 0))
@@ -135,7 +115,4 @@ def _parse_tr_data(data=None): # data[0] = img, data[1] = joint_all, data[2] = m
                 batch_y1, batch_y2]
 
 def _parse_va_data(filename=None):
-    print("You thought this function did something huh?")
-   
-
-#_parse_tr_data(data="000000000009.jpg") 
+    return 0
