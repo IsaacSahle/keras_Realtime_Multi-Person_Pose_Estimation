@@ -13,6 +13,7 @@ def create_data_info(coco,filename,img_dir):
     img_name = filename.rstrip(".jpg")
     img_id = (filename.rstrip(".jpg")).lstrip("0")   
     ann_ids = coco.getAnnIds(imgIds=int(img_id))
+
     img_anns = coco.loadAnns(ann_ids)
     numPeople = len(img_anns)
     img_path = os.path.join(img_dir, '%s.jpg' % img_name)
