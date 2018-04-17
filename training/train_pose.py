@@ -115,14 +115,17 @@ else:
                     img,joint_all,mask_miss,mask_all = create_data_info(coco,name,img_dir)
                     if((img is not None) or (joint_all is not None) or (mask_miss is not None) or (mask_all is not None)):
                         if("joint_self" in joint_all and (joint_all["joint_self"] is not None)):
+                            # Convert to list because json.dumps cannot serialize np arrays
                             joint_all["joint_self"] = joint_all["joint_self"].tolist()
                             
                         if("joint_others" in joint_all and (joint_all["joint_others"] is not None)):
                             for i in range(len(joint_all["joint_others"])):
+                                # Convert to list because json.dumps cannot serialize np arrays
                                 (joint_all["joint_others"])[i] = (joint_all["joint_others"])[i].tolist()
                         
+                        # Convert all data to string because dataset.fromtensorslices only likes bytes or strings
                         data.append([np.array2string(img,separator=','),json.dumps(joint_all),np.array2string(mask_miss,separator=','),np.array2string(mask_all,separator=',') if mask_all is not None else ""])
-                        # write to file
+                        # write to file so we do not have to do this twice
                         h5_group = h5_file.create_group(name)
                         h5_group.create_dataset("data",data=np.array2string(img,separator=','))
                         h5_group.create_dataset("joint_all",data=json.dumps(joint_all))
@@ -151,7 +154,7 @@ else:
             else:
                 dataset = tf.data.Dataset.from_tensor_slices(val_data_list)
             
-            # Map dataset *** break big function into multiple map functions
+            # TODO(someone): Break _parse_tr_data into smaller functions and do multiple maps
             if train:
                 dataset = dataset.map(lambda filename: tuple(tf.py_func(_parse_tr_data,[filename],[filename.dtype]))) # Output type incorrect
                 dataset  = dataset.shuffle(50).batch(batch_size)

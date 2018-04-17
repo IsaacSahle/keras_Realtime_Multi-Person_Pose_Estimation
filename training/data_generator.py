@@ -65,9 +65,6 @@ def preprocess(train=None,data=None):
     return data_img, mask_img,label
 
 def _parse_tr_data(data=None): # data[0] = img, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
-    # *** data_img -> (3,368,368) ***
-    # *** mask_img -> (46,46) ***
-    # *** label -> (57,46,46) ***
     print("data")
     print(str(data[0]))
     print(data[1])
@@ -81,6 +78,13 @@ def _parse_tr_data(data=None): # data[0] = img, data[1] = joint_all, data[2] = m
     
     data_img, mask_img, label = preprocess(True, data)
 
+    # TODO(someone): Kwang, please not that since the result from preprocess is not
+    # working, this portion of code has yet to be tested
+
+    # Expected shapes
+    # *** data_img -> (3,368,368) ***
+    # *** mask_img -> (46,46) ***
+    # *** label -> (57,46,46) ***
     # image
     data_img = np.transpose(data_img, (1, 2, 0))
     batches_x[sample_idx]=dta_img[np.newaxis, ...]

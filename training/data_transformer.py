@@ -37,12 +37,9 @@ class DataTransformer(object):
 
     def transform(self,data): # data[0] = img, data[1] = joint_all, data[2] = mask_miss, data[3] = mask_all
         aug = AugmentSelection(False,0.0,(),0)
-        # coco = COCO(annotation_file=anno_path)
-        # filename = filename.decode("utf-8")
-        # img,meta,mask_miss,mask_all = self.create_data_info(coco,filename,img_dir)
-        # *** might have to decode
         
-        #convert strings back to np arrays
+        #TODO(someone): Kwang, please note from this point forward the code is not working
+        # The work that is left to do is convert data back into numpy arrays and 
         img = np.fromstring(data[0],dtype=np.uint8) # not working properly, giving us incorrect array
         mask_miss = np.fromstring(data[2], dtype=np.uint8) 
         mask_all = np.fromstring(data[3], dtype=np.uint8) 
@@ -444,5 +441,3 @@ class DataTransformer(object):
                     if(joint[j,0] < 0 or joint[j,1] < 0 or joint[j,0] >= meta["img_width"] or joint[j,1] >= meta["img_height"]):
                         joint[j,2] = 2
         return meta 
-    
-
