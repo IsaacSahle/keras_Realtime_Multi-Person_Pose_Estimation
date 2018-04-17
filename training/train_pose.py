@@ -143,7 +143,6 @@ else:
         val_img_dir = os.path.join(dataset_dir, "val2017")
         # Retrieve file names and create tf constants
         tr_data_list = filter_for_people(tr_hdf5_path,tr_img_dir,tr_anno_path)
-        print(type(tr_data_list),"*************")
         # val_data_list = filter_for_people(val_hdf5_path,val_img_dir,val_anno_path)
         with tf.Session() as sess:        
             # Create dataset

@@ -49,20 +49,12 @@ class DataTransformer(object):
         
         # meta = self.format_meta_data(meta)
         meta = self.format_meta_data(data[1])
-        #print(img)
-        #print(meta)
-        #print(mask_all)
-        #print(mask_miss)
-        
-        print("\nSTART\n")
 
         if(self.param.transform_body_joint):
             meta = self.TransformMetaJoints(meta)
         
         # Start transformation
-        print("\nEND\n")
         img_aug = np.zeros((self.param.crop_size_y,self.param.crop_size_x,3))
-        print("\nEND\n")
         
         mask_miss_aug = None
 
@@ -128,10 +120,9 @@ class DataTransformer(object):
     def AugmentationScale(self,img_src,mask_miss,meta):
         print("hi")
         dice = random.random()
-        print("hi")
+
         if(dice > self.param.scale_prob):
-            print("hi")
-            img_temp = np.copy(img_src) # *** will probably break check when testing ***
+            img_temp = np.copy(img_src)
             scale_multiplier = 1
         else:
             print("hi")
@@ -139,13 +130,10 @@ class DataTransformer(object):
             scale_multiplier = (self.param.scale_max - self.param.scale_min) * dice2 + self.param.scale_min
         scale_abs = self.param.target_dist/meta["scale_provided"]
         scale = scale_abs * scale_multiplier
-        print(img_src.shape)
-        print(meta["img_height"])
-        print(meta["img_width"])
+
         img_temp = cv2.resize(img_src,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC)
-        print("hi")
         mask_miss = cv2.resize(mask_miss,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC)
-        print("hi")
+
 
         meta["objpos"] = [i * scale for i in meta["objpos"]]
         for i in range(self.num_parts):
